@@ -219,6 +219,7 @@
             text-align: center;
             padding: 2px;
             background: transparent;
+            width: 60px
         }
 
         input[type="number"]:focus, select:focus {
@@ -630,6 +631,7 @@
         const activities = [
             { id: 'conjuntodiario', name: 'Conjunto Diario', color: '#FFFF00', defaultValue: 125 },
             { id: 'maisatividade', name: 'Mais Atividade', color: '#FFFF00', defaultValue: 300 },
+            { id: 'navegaredge', name: 'Navegar com Edge', color: '#FFFF00', defaultValue: 5 },
             { id: 'pesquisabingpc', name: 'Pesquisas do Bing', color: '#FFFF00', defaultValue: 30 },
             { id: 'diariabing', name: 'Diaria do App Bing', color: '#5a8eed', defaultValue: 25 },
             { id: 'noticiasbing', name: 'Noticias do App Bing', color: '#5a8eed', defaultValue: 150 },
@@ -656,6 +658,13 @@
                 nome: 'Bonus de Sequencia do Bing',
                 diasConsecutivos: 10,
                 atividade: 'conjuntodiario'
+            },
+            // Bônus de Sequência do Edge - 7 dias consecutivos de Navegar com Edge
+            bonusSequenciaEdge: {
+                valor: 100,
+                nome: 'Bonus de Sequencia do Edge',
+                diasConsecutivos: 7,
+                atividade: 'navegaredge'
             },
             // Sequências Semanais Gamepass - 7 dias consecutivos de Jogar Gamepass
             sequenciasSemanaisGamepass: {
@@ -832,7 +841,55 @@
                 }
             }
 
-            // === BÔNUS 3: Sequencias Semanais Gamepass (7 dias de Jogar um jogo pelo Gamepass) ===
+            // === BÔNUS 3: Bonus de Sequencia do Edge (7 dias de Navegar com Edge) ===
+            let consecutiveDaysEdge = 0;
+            let groupStartEdge = 0;
+            
+            // Contar dias consecutivos do final do mês anterior
+            for (let d = prevMonthDaysForBonus; d >= 1; d--) {
+                const dKey = `day${d}`;
+                const dValue = data[prevMonthKeyForBonus]?.[dKey]?.navegaredge;
+                if (dValue && dValue !== '' && dValue !== 0) {
+                    consecutiveDaysEdge++;
+                } else {
+                    break;
+                }
+            }
+            
+            // Se já havia dias consecutivos do mês anterior, ajustar
+            if (consecutiveDaysEdge > 0) {
+                consecutiveDaysEdge = Math.min(consecutiveDaysEdge, 6); // Máximo 6 do mês anterior
+            }
+            
+            // Processar dias do mês atual para detectar bônus de Edge
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dKey = `day${d}`;
+                const dValue = data[monthKey][dKey]?.navegaredge;
+                
+                if (dValue && dValue !== '' && dValue !== 0) {
+                    if (consecutiveDaysEdge === 0) {
+                        groupStartEdge = d;
+                    }
+                    consecutiveDaysEdge++;
+                    
+                    // Se completou 7 dias, adicionar bônus no 7º dia
+                    if (consecutiveDaysEdge === 7) {
+                        if (!bonusPerDay[d]) {
+                            bonusPerDay[d] = { total: 0, items: [] };
+                        }
+                        bonusPerDay[d].total += BONUS_CONFIG.bonusSequenciaEdge.valor;
+                        bonusPerDay[d].items.push({ value: BONUS_CONFIG.bonusSequenciaEdge.valor, name: BONUS_CONFIG.bonusSequenciaEdge.nome });
+                        consecutiveDaysEdge = 0; // Resetar para o próximo grupo
+                        groupStartEdge = 0;
+                    }
+                } else {
+                    // Dia vazio ou sem pontos, resetar contador
+                    consecutiveDaysEdge = 0;
+                    groupStartEdge = 0;
+                }
+            }
+
+            // === BÔNUS 4: Sequencias Semanais Gamepass (7 dias de Jogar um jogo pelo Gamepass) ===
             let consecutiveDaysGamepass = 0;
             let groupStartGamepass = 0;
             
@@ -880,7 +937,7 @@
                 }
             }
 
-            // === BÔNUS 4: Bonus Semanal do PC (5 dias de Console em uma semana) ===
+            // === BÔNUS 5: Bonus Semanal do PC (5 dias de Console em uma semana) ===
             // Verificar se há uma semana do mês anterior que continua neste mês
             const prevMonthConsole = currentMonth - 1;
             const prevYearConsole = prevMonthConsole < 0 ? currentYear - 1 : currentYear;
@@ -965,7 +1022,7 @@
                 }
             }
 
-            // === BÔNUS 5: Bonus Semanal do Windows (5 dias de Windows em uma semana) ===
+            // === BÔNUS 6: Bonus Semanal do Windows (5 dias de Windows em uma semana) ===
             // Verificar se há uma semana do mês anterior que continua neste mês
             const prevMonthWindows = currentMonth - 1;
             const prevYearWindows = prevMonthWindows < 0 ? currentYear - 1 : currentYear;
@@ -1171,9 +1228,9 @@
             activities.forEach(activity => {
                 html += `<tr><td class="row-header sub" style="background: ${activity.color}; border-width: 0px">${activity.name}</td>`;
                 
-                // Para Conjunto Diario e Pesquisas Bing PC, primeiro identificar todos os grupos no mês
+                // Para Conjunto Diario, Pesquisas Bing PC e Navegar com Edge, primeiro identificar todos os grupos no mês
                 let groups = [];
-                const groupDays = activity.id === 'conjuntodiario' ? 10 : activity.id === 'pesquisabingpc' ? 7 : activity.id === 'playgamepass' ? 7 : 0;
+                const groupDays = activity.id === 'conjuntodiario' ? 10 : activity.id === 'pesquisabingpc' ? 7 : activity.id === 'navegaredge' ? 7 : activity.id === 'playgamepass' ? 7 : 0;
                 
                 // Para playconsole, identificar grupos de 5 dias dentro de cada semana
                 let consoleGroups = [];
@@ -1566,9 +1623,9 @@
                     const value = data[monthKey][dayKey]?.[activity.id] || '';
                     const dayOfWeek = getDayOfWeek(currentYear, currentMonth, day);
                     
-                    // Determinar se deve ter borda de grupo (para Conjunto Diario e Pesquisas Bing PC)
+                    // Determinar se deve ter borda de grupo (para Conjunto Diario, Pesquisas Bing PC e Navegar com Edge)
                     let borderClasses = [];
-                    if (activity.id === 'conjuntodiario' || activity.id === 'pesquisabingpc') {
+                    if (activity.id === 'conjuntodiario' || activity.id === 'pesquisabingpc' || activity.id === 'navegaredge') {
                         // Verificar se este dia está dentro de algum grupo
                         for (let group of groups) {
                             if (day >= group.start && day <= group.end) {
@@ -1771,6 +1828,16 @@
                             html += `<option value="25" ${value === 25 ? 'selected' : ''}>25</option>`;
                             html += `</select></td>`;
                         }
+                    }
+                    // Se for Navegar com Edge, usar select com opções 0 ou 5
+                    else if (activity.id === 'navegaredge') {
+                        const emptyBgClass = (!value && !borderClass.includes('group-background')) ? 'group-empty-background' : '';
+                        const finalClass = `${borderClass} ${emptyBgClass}`.trim();
+                        html += `<td class="editable ${finalClass}">`;
+                        html += `<select onchange="updateCell('${monthKey}', '${dayKey}', '${activity.id}', this.value)">`;
+                        html += `<option value="" ${value === '' ? 'selected' : ''}>-</option>`;
+                        html += `<option value="5" ${value === 5 ? 'selected' : ''}>5</option>`;
+                        html += `</select></td>`;
                     }
                     // Se for Pesquisas Bing PC, validar múltiplos de 3 (máximo 150)
                     else if (activity.id === 'pesquisabingpc') {
