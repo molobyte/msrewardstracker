@@ -507,7 +507,7 @@
         }
 
         /* Media query para telas menores - ocultar textos dos botões */
-        @media screen and (max-width: 970px) {
+        @media screen and (max-width: 940px) {
             .button-text {
                 display: none;
             }
@@ -539,7 +539,7 @@
             <div class="controls">
                 <div class="month-selector">
                     <button onclick="previousMonth()" style="width: 40px;"><span class="material-icons">arrow_back</span></button>
-                    <span id="currentMonth" style="width: 105px; font-size: 14px; font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"></span>
+                    <span id="currentMonth" style="width: 75px; font-size: 14px; font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"></span>
                     <button onclick="nextMonth()" style="width: 40px;"><span class="material-icons">arrow_forward</span></button>
                     <button onclick="openAddBonusModal()" style="background: #0078d4;">
                         <span class="material-icons">calendar_month</span><span class="button-text"> Adicionar</span>
@@ -618,8 +618,8 @@
         let currentMonth = today.getMonth(); // 0-indexed (0 = Janeiro, 11 = Dezembro)
         let data = {};
 
-        const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        const monthNames = ['Jan.', 'Fev.', 'Mar.', 'Abr.', 'Mai.', 'Jun.', 
+                           'Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.', 'Dez.'];
 
         const activities = [
             { id: 'conjuntodiario', name: 'Conjunto Diario', color: '#FFFF00', defaultValue: 125 },
