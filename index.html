@@ -13,6 +13,8 @@
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="manifest" href="site.webmanifest">
     
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         * {
             margin: 0;
@@ -569,6 +571,9 @@
                     <button class="clear" onclick="clearMonth()">
                         <span class="material-icons">clear</span><span class="button-text"> Limpar Mês</span>
                     </button>
+                    <button onclick="logout()" style="background: #d13438;">
+                        <span class="material-icons">logout</span><span class="button-text"> Sair</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -619,6 +624,44 @@
     </div>
 
     <script>
+        // ===== AUTENTICAÇÃO COM SUPABASE =====
+        const SUPABASE_URL = "https://soxvussrbmgqibxqkwvi.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNveHZ1c3NyYm1ncWlieHFrd3ZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NjU1NTksImV4cCI6MjA3NTU0MTU1OX0.wxXtaXSrVxxbkXbCZf_y3DSw6dsixhZQg3kxpLf3BFA";
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Verificar sessão ao carregar a página
+        async function checkSession() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            
+            if (!session) {
+                // Sem sessão ativa, redirecionar para login
+                window.location.href = "login.html";
+                return false;
+            }
+            
+            console.log("Usuário autenticado:", session.user.email);
+            return true;
+        }
+
+        // Função de logout
+        async function logout() {
+            const confirmLogout = confirm("Deseja realmente sair?");
+            if (confirmLogout) {
+                await supabaseClient.auth.signOut();
+                window.location.href = "login.html";
+            }
+        }
+
+        // Verificar sessão antes de inicializar
+        checkSession().then(isAuthenticated => {
+            if (isAuthenticated) {
+                init();
+            }
+        });
+
+        // ===== ESTRUTURA DE DADOS =====
         // Estrutura de dados
         const today = new Date();
         let currentYear = today.getFullYear();
@@ -2507,9 +2550,6 @@
             // Limpar o input para permitir importar o mesmo arquivo novamente
             event.target.value = '';
         }
-
-        // Inicializar ao carregar a página
-        window.onload = init;
 
         // Auto-save a cada 30 segundos
         setInterval(() => {
