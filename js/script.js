@@ -17,6 +17,9 @@ async function checkSession() {
     
     console.log("Usuário autenticado:", session.user.email);
     
+    // Salvar o UUID do usuário atual
+    currentUserId = session.user.id;
+    
     // Atualizar email do usuário no header
     const userEmailElement = document.getElementById('userEmail');
     if (userEmailElement) {
@@ -58,6 +61,28 @@ let data = {};
 // ===== CONTROLE DE SALVAMENTO COM DEBOUNCE =====
 let saveTimeout = null; // Timer para debounce de 30 segundos
 let hasUnsavedChanges = false; // Flag para indicar mudanças não salvas
+let currentUserId = null; // UUID do usuário atual logado
+
+// Funções auxiliares para localStorage segregado por usuário
+function getLocalStorageKey(userId) {
+    return `msRewardsData_${userId}`;
+}
+
+function saveToLocalStorage(userId, data) {
+    const key = getLocalStorageKey(userId);
+    localStorage.setItem(key, JSON.stringify(data));
+    console.log(`💾 Dados salvos no localStorage para usuário: ${userId.substring(0, 8)}...`);
+}
+
+function loadFromLocalStorage(userId) {
+    const key = getLocalStorageKey(userId);
+    const saved = localStorage.getItem(key);
+    if (saved) {
+        console.log(`📂 Dados carregados do localStorage para usuário: ${userId.substring(0, 8)}...`);
+        return JSON.parse(saved);
+    }
+    return null;
+}
 
 const monthNames = ['Jan.', 'Fev.', 'Mar.', 'Abr.', 'Mai.', 'Jun.', 
                     'Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.', 'Dez.'];
@@ -1870,8 +1895,12 @@ window.onclick = function(event) {
 async function saveData(immediate = false) {
     console.log(`🔄 saveData() chamada - immediate=${immediate}`);
     
-    // Salvar no localStorage imediatamente (sempre)
-    localStorage.setItem('msRewardsData', JSON.stringify(data));
+    // Salvar no localStorage imediatamente (sempre) - segregado por usuário
+    if (currentUserId) {
+        saveToLocalStorage(currentUserId, data);
+    } else {
+        console.warn('⚠️ Nenhum usuário logado, não salvando no localStorage');
+    }
     hasUnsavedChanges = true;
     
     // Se não for salvamento imediato, aplicar debounce de 30 segundos
@@ -2017,15 +2046,12 @@ async function loadData() {
         const { data: sessionData } = await supabaseClient.auth.getSession();
         
         if (!sessionData?.session) {
-            console.warn('Usuário não autenticado. Carregando apenas do localStorage.');
-            const saved = localStorage.getItem('msRewardsData');
-            if (saved) {
-                data = JSON.parse(saved);
-            }
+            console.warn('⚠️ Usuário não autenticado. Não é possível carregar dados.');
             return;
         }
         
         const userId = sessionData.session.user.id;
+        console.log(`📥 Carregando dados para usuário: ${userId.substring(0, 8)}...`);
         
         // Buscar todos os dados do usuário no Supabase
         const { data: userDataResult, error } = await supabaseClient
@@ -2048,27 +2074,39 @@ async function loadData() {
                 data[monthKey] = record.json;
             });
             
-            // Salvar no localStorage como backup
-            localStorage.setItem('msRewardsData', JSON.stringify(data));
+            // Salvar no localStorage como backup (segregado por usuário)
+            saveToLocalStorage(userId, data);
             
             console.log('✅ Dados carregados do Supabase!');
         } else {
-            // Nenhum dado no Supabase, tentar carregar do localStorage
-            console.log('Nenhum dado encontrado no Supabase. Tentando localStorage...');
-            const saved = localStorage.getItem('msRewardsData');
-            if (saved) {
-                data = JSON.parse(saved);
-                console.log('Dados carregados do localStorage.');
+            // Nenhum dado no Supabase, tentar carregar do localStorage deste usuário
+            console.log('❓ Nenhum dado encontrado no Supabase. Tentando localStorage...');
+            const localData = loadFromLocalStorage(userId);
+            if (localData) {
+                data = localData;
+                console.log('✅ Dados carregados do localStorage do usuário.');
+            } else {
+                console.log('ℹ️ Nenhum dado encontrado. Iniciando com dados vazios.');
+                data = {};
             }
         }
         
     } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-        // Fallback para localStorage
-        const saved = localStorage.getItem('msRewardsData');
-        if (saved) {
-            data = JSON.parse(saved);
-            console.log('Fallback: dados carregados do localStorage.');
+        console.error('❌ Erro ao carregar dados:', error);
+        
+        // Fallback para localStorage do usuário atual
+        if (currentUserId) {
+            const localData = loadFromLocalStorage(currentUserId);
+            if (localData) {
+                data = localData;
+                console.log('✅ Fallback: dados carregados do localStorage do usuário.');
+            } else {
+                console.log('ℹ️ Fallback: Iniciando com dados vazios.');
+                data = {};
+            }
+        } else {
+            console.warn('⚠️ Não foi possível carregar dados: usuário não identificado.');
+            data = {};
         }
     }
 }
@@ -2083,14 +2121,17 @@ function clearMonth() {
 }
 
 function exportData() {
-    // Exporta o JSON completo do localStorage (data)
-    const jsonData = localStorage.getItem('msRewardsData') || JSON.stringify(data);
+    // Exporta o JSON dos dados atuais do usuário
+    const jsonData = JSON.stringify(data, null, 2); // Formatado com indentação
     const blob = new Blob([jsonData], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `MS_Rewards_Export_${new Date().toISOString().slice(0,10)}.json`;
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const userIdShort = currentUserId ? currentUserId.substring(0, 8) : 'unknown';
+    a.download = `MS_Rewards_Export_${userIdShort}_${timestamp}.json`;
     a.click();
+    console.log('📤 Dados exportados com sucesso!');
 }
 
 function importData(event) {
@@ -2115,16 +2156,20 @@ function importData(event) {
                 throw new Error('Estrutura de dados inválida');
             }
 
-            // Perguntar ao usuário se deseja substituir ou mesclar os dados
+            // Substituir dados atuais
             data = importedData;
             
-            // Salvar no localStorage e atualizar a tabela
-            localStorage.setItem('msRewardsData', JSON.stringify(data));
+            // Salvar no localStorage segregado e atualizar a tabela
+            if (currentUserId) {
+                saveToLocalStorage(currentUserId, data);
+            }
             generateTable();
             
             alert('✅ Dados importados com sucesso!');
+            console.log('📥 Dados importados com sucesso!');
         } catch (error) {
             alert('❌ Erro ao importar arquivo: ' + error.message + '\n\nVerifique se o arquivo é um JSON válido exportado desta aplicação.');
+            console.error('❌ Erro ao importar:', error);
         }
     };
 
