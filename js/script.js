@@ -30,6 +30,12 @@ async function checkSession() {
 async function logout() {
     const confirmLogout = confirm("Deseja realmente sair?");
     if (confirmLogout) {
+        // Salvar dados pendentes antes de sair
+        if (hasUnsavedChanges) {
+            console.log('💾 Salvando dados pendentes antes de fazer logout...');
+            await saveData(true); // Salvar imediatamente
+        }
+        
         await supabaseClient.auth.signOut();
         window.location.href = "login.html";
     }
@@ -48,6 +54,10 @@ const today = new Date();
 let currentYear = today.getFullYear();
 let currentMonth = today.getMonth(); // 0-indexed (0 = Janeiro, 11 = Dezembro)
 let data = {};
+
+// ===== CONTROLE DE SALVAMENTO COM DEBOUNCE =====
+let saveTimeout = null; // Timer para debounce de 30 segundos
+let hasUnsavedChanges = false; // Flag para indicar mudanças não salvas
 
 const monthNames = ['Jan.', 'Fev.', 'Mar.', 'Abr.', 'Mai.', 'Jun.', 
                     'Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.', 'Dez.'];
@@ -114,8 +124,8 @@ const BONUS_CONFIG = {
 };
 
 // Inicialização
-function init() {
-    loadData();
+async function init() {
+    await loadData();
     updateMonthDisplay();
     generateTable();
 }
@@ -1274,8 +1284,7 @@ function generateTable() {
                                 min="0"
                                 max="150"
                                 step="3"
-                                onchange="validateMultipleOf3('${monthKey}', '${dayKey}', '${activity.id}', this, 150)"
-                                onblur="calculateDayTotal('${monthKey}', '${dayKey}')">
+                                onchange="validateMultipleOf3('${monthKey}', '${dayKey}', '${activity.id}', this, 150)">
                             </td>`;
             }
             // Se for Diaria do App Bing, usar select com opções baseadas no ciclo
@@ -1398,8 +1407,7 @@ function generateTable() {
                                 min="0"
                                 max="30"
                                 step="3"
-                                onchange="validateMultipleOf3('${monthKey}', '${dayKey}', '${activity.id}', this, 30)"
-                                onblur="calculateDayTotal('${monthKey}', '${dayKey}')">
+                                onchange="validateMultipleOf3('${monthKey}', '${dayKey}', '${activity.id}', this, 30)">
                             </td>`;
             }
             // Se for Jogar Jewels no Celular, usar select com opções 0 ou 10
@@ -1613,12 +1621,16 @@ function editCell(monthKey, dayKey, activityId, cell) {
 }
 
 function updateCell(monthKey, dayKey, activityId, value) {
+    console.log(`📝 updateCell() chamada - Atividade: ${activityId}, Valor: ${value}`);
+    
     if (!data[monthKey]) data[monthKey] = {};
     if (!data[monthKey][dayKey]) data[monthKey][dayKey] = {};
     
     data[monthKey][dayKey][activityId] = value ? parseInt(value) : '';
     calculateDayTotal(monthKey, dayKey);
-    saveData();
+    
+    console.log('💾 Chamando saveData() com debounce...');
+    saveData(); // Chama com debounce (immediate = false por padrão)
 }
 
 function validateMultipleOf3(monthKey, dayKey, activityId, input, maxValue = 90) {
@@ -1855,15 +1867,209 @@ window.onclick = function(event) {
     }
 }
 
-function saveData() {
+async function saveData(immediate = false) {
+    console.log(`🔄 saveData() chamada - immediate=${immediate}`);
+    
+    // Salvar no localStorage imediatamente (sempre)
     localStorage.setItem('msRewardsData', JSON.stringify(data));
-    // alert('✅ Dados salvos com sucesso!');
+    hasUnsavedChanges = true;
+    
+    // Se não for salvamento imediato, aplicar debounce de 30 segundos
+    if (!immediate) {
+        // Limpar timeout anterior se existir
+        if (saveTimeout) {
+            clearTimeout(saveTimeout);
+            console.log('⏳ Timer de salvamento CANCELADO e REINICIADO (30 segundos)');
+        } else {
+            console.log('⏱️ Timer de salvamento INICIADO (30 segundos)');
+        }
+        
+        // Criar novo timeout de 30 segundos
+        saveTimeout = setTimeout(() => {
+            console.log('⏰ 30 segundos de inatividade detectados - salvando no Supabase...');
+            saveToSupabase();
+        }, 30000); // 30 segundos
+        
+        console.log('✅ Timer agendado. Aguardando 30 segundos sem edições...');
+        return; // Não salvar no Supabase ainda
+    }
+    
+    // Se for imediato, salvar agora
+    console.log('💾 Salvamento IMEDIATO solicitado');
+    
+    // Cancelar qualquer timer pendente
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+        console.log('🚫 Timer pendente cancelado');
+    }
+    
+    await saveToSupabase();
 }
 
-function loadData() {
-    const saved = localStorage.getItem('msRewardsData');
-    if (saved) {
-        data = JSON.parse(saved);
+// Função separada que realmente salva no Supabase
+async function saveToSupabase() {
+    try {
+        // Obter sessão do usuário
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        
+        if (!sessionData?.session) {
+            console.warn('Usuário não autenticado. Salvando apenas no localStorage.');
+            hasUnsavedChanges = false;
+            return;
+        }
+        
+        const userId = sessionData.session.user.id;
+        
+        // Preparar dados para salvar no Supabase
+        const monthKey = `${currentYear}-${currentMonth}`;
+        const monthData = data[monthKey] || {};
+        
+        // Converter mês de 0-11 para 1-12 para o banco de dados
+        const monthForDB = currentMonth + 1;
+        
+        console.log(`💾 Salvando dados: Usuário=${userId}, Ano=${currentYear}, Mês=${monthForDB}`);
+        console.log(`📊 Dados do mês (${monthKey}):`, monthData);
+        
+        // Verificar se já existe um registro para este usuário/ano/mês
+        const { data: existingDataResult, error: selectError } = await supabaseClient
+            .from('user_data')
+            .select('*')
+            .eq('uuid', userId)
+            .eq('year', currentYear)
+            .eq('month', monthForDB)
+            .maybeSingle();
+        
+        if (selectError) {
+            console.error('Erro ao verificar dados existentes:', selectError);
+            throw selectError;
+        }
+        
+        const dataToSave = {
+            uuid: userId,
+            year: currentYear,
+            month: monthForDB, // Mês de 1 a 12
+            json: monthData,
+            created_at: new Date().toISOString()
+        };
+        
+        if (existingDataResult) {
+            // Atualizar registro existente
+            console.log('📝 Atualizando registro existente...');
+            const { data: updateResult, error: updateError } = await supabaseClient
+                .from('user_data')
+                .update({
+                    json: monthData,
+                    created_at: new Date().toISOString()
+                })
+                .eq('uuid', userId)
+                .eq('year', currentYear)
+                .eq('month', monthForDB)
+                .select();
+            
+            if (updateError) {
+                console.error('Erro ao atualizar dados no Supabase:', updateError);
+                throw updateError;
+            }
+            
+            console.log('✅ Dados atualizados com sucesso!', updateResult);
+        } else {
+            // Inserir novo registro
+            console.log('➕ Inserindo novo registro...');
+            const { data: insertResult, error: insertError } = await supabaseClient
+                .from('user_data')
+                .insert([dataToSave])
+                .select();
+            
+            if (insertError) {
+                console.error('Erro ao inserir dados no Supabase:', insertError);
+                throw insertError;
+            }
+            
+            console.log('✅ Novo registro criado com sucesso!', insertResult);
+        }
+        
+        console.log('✅ Dados salvos com sucesso no Supabase!');
+        hasUnsavedChanges = false;
+        
+    } catch (error) {
+        console.error('❌ Erro ao salvar no Supabase:', error);
+        alert('⚠️ Erro ao salvar dados online. Os dados foram salvos localmente.');
+    }
+}
+
+// Função para salvar imediatamente (chamada pelo botão)
+async function saveDataImmediately() {
+    if (!hasUnsavedChanges) {
+        console.log('ℹ️ Nenhuma alteração para salvar');
+        alert('✅ Não há alterações para salvar!');
+        return;
+    }
+    
+    console.log('🚀 Salvamento manual iniciado...');
+    await saveData(true);
+    alert('✅ Dados salvos com sucesso!');
+}
+
+async function loadData() {
+    try {
+        // Obter sessão do usuário
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        
+        if (!sessionData?.session) {
+            console.warn('Usuário não autenticado. Carregando apenas do localStorage.');
+            const saved = localStorage.getItem('msRewardsData');
+            if (saved) {
+                data = JSON.parse(saved);
+            }
+            return;
+        }
+        
+        const userId = sessionData.session.user.id;
+        
+        // Buscar todos os dados do usuário no Supabase
+        const { data: userDataResult, error } = await supabaseClient
+            .from('user_data')
+            .select('*')
+            .eq('uuid', userId);
+        
+        if (error) {
+            console.error('Erro ao carregar dados do Supabase:', error);
+            throw error;
+        }
+        
+        if (userDataResult && userDataResult.length > 0) {
+            // Reconstruir o objeto data a partir dos registros do Supabase
+            data = {};
+            userDataResult.forEach(record => {
+                // Converter mês de 1-12 (banco de dados) para 0-11 (JavaScript)
+                const monthForJS = record.month - 1;
+                const monthKey = `${record.year}-${monthForJS}`;
+                data[monthKey] = record.json;
+            });
+            
+            // Salvar no localStorage como backup
+            localStorage.setItem('msRewardsData', JSON.stringify(data));
+            
+            console.log('✅ Dados carregados do Supabase!');
+        } else {
+            // Nenhum dado no Supabase, tentar carregar do localStorage
+            console.log('Nenhum dado encontrado no Supabase. Tentando localStorage...');
+            const saved = localStorage.getItem('msRewardsData');
+            if (saved) {
+                data = JSON.parse(saved);
+                console.log('Dados carregados do localStorage.');
+            }
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        // Fallback para localStorage
+        const saved = localStorage.getItem('msRewardsData');
+        if (saved) {
+            data = JSON.parse(saved);
+            console.log('Fallback: dados carregados do localStorage.');
+        }
     }
 }
 
@@ -1932,7 +2138,7 @@ function importData(event) {
     event.target.value = '';
 }
 
-// Auto-save a cada 30 segundos
-setInterval(() => {
-    saveData();
-}, 30000);
+// REMOVIDO: Auto-save a cada 30 segundos (substituído por debounce)
+// Agora o salvamento é feito:
+// 1. Automaticamente após 30 segundos de inatividade (debounce)
+// 2. Manualmente ao clicar no botão "Salvar"
