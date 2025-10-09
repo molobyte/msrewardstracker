@@ -57,7 +57,57 @@
             font-size: 28px;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 8px;
+        }
+
+        .title-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .user-email {
+            font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .user-email .material-icons {
+            font-size: 20px;
+            color: #0078d4;
+        }
+
+        .logout-link {
+            font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            color: #d13438;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+
+        .logout-link:hover {
+            color: #a72828;
+        }
+
+        .logout-link .material-icons {
+            font-size: 18px;
         }
 
         .controls {
@@ -543,7 +593,21 @@
 <body>
     <div class="container">
         <div class="header-fixed">
-            <h1><span class="material-icons">diamond</span> Microsoft Rewards Tracker</h1>
+            <h1>
+                <div class="title-left">
+                    <span class="material-icons">diamond</span> Microsoft Rewards Tracker
+                </div>
+                <div class="user-info">
+                    <span class="user-email">
+                        <span class="material-icons">account_circle</span>
+                        <span id="userEmail">Carregando...</span>
+                    </span>
+                    <a class="logout-link" onclick="logout()">
+                        <span class="material-icons">logout</span>
+                        Sair
+                    </a>
+                </div>
+            </h1> 
             
             <div class="controls">
                 <div class="month-selector">
@@ -570,9 +634,6 @@
                     <input type="file" id="importFileInput" accept=".json" style="display: none;" onchange="importData(event)">
                     <button class="clear" onclick="clearMonth()">
                         <span class="material-icons">clear</span><span class="button-text"> Limpar Mês</span>
-                    </button>
-                    <button onclick="logout()" style="background: #d13438;">
-                        <span class="material-icons">logout</span><span class="button-text"> Sair</span>
                     </button>
                 </div>
             </div>
@@ -642,6 +703,13 @@
             }
             
             console.log("Usuário autenticado:", session.user.email);
+            
+            // Atualizar email do usuário no header
+            const userEmailElement = document.getElementById('userEmail');
+            if (userEmailElement) {
+                userEmailElement.textContent = session.user.email;
+            }
+            
             return true;
         }
 
