@@ -300,7 +300,11 @@ function generateTable() {
         }
     }
 
-    // === BÔNUS 3: Bonus de Sequencia do Edge (7 dias de Navegar com Edge) ===
+    // === BÔNUS 3: Bonus de Sequencia do Edge (DESABILITADO - nova lógica progressiva) ===
+    // O bônus de 100 pontos não é mais creditado.
+    // Agora o Edge usa sequência progressiva: 5 > 10 > 20 > 30 > 40 > 80 > 120
+    
+    /* CÓDIGO ORIGINAL COMENTADO:
     let consecutiveDaysEdge = 0;
     let groupStartEdge = 0;
     
@@ -347,6 +351,7 @@ function generateTable() {
             groupStartEdge = 0;
         }
     }
+    */
 
     // === BÔNUS 4: Sequencias Semanais Gamepass (7 dias de Jogar um jogo pelo Gamepass) ===
     let consecutiveDaysGamepass = 0;
@@ -1288,14 +1293,65 @@ function generateTable() {
                     html += `</select></td>`;
                 }
             }
-            // Se for Navegar com Edge, usar select com opções 0 ou 5
+            // Se for Navegar com Edge, usar select com sequência progressiva: 5, 10, 20, 30, 40, 80, 120
             else if (activity.id === 'navegaredge') {
+                // Determinar qual valor está disponível baseado no dia anterior
+                const edgeSequence = [5, 10, 20, 30, 40, 80, 120];
+                let availableOptions = ['']; // Sempre pode deixar vazio
+                
+                if (day > 1) {
+                    const prevDayKey = `day${day - 1}`;
+                    const prevValue = data[monthKey]?.[prevDayKey]?.navegaredge;
+                    
+                    if (prevValue && prevValue !== '' && prevValue !== 0) {
+                        // Encontrar o índice do valor anterior na sequência
+                        const prevIndex = edgeSequence.indexOf(parseInt(prevValue));
+                        if (prevIndex !== -1 && prevIndex < edgeSequence.length - 1) {
+                            // Próximo valor da sequência está disponível
+                            availableOptions.push(edgeSequence[prevIndex + 1]);
+                        } else if (prevIndex === edgeSequence.length - 1) {
+                            // Completou a sequência (120), pode começar de novo
+                            availableOptions.push(edgeSequence[0]);
+                        }
+                    } else {
+                        // Dia anterior estava vazio, pode começar a sequência
+                        availableOptions.push(edgeSequence[0]);
+                    }
+                } else {
+                    // Primeiro dia do mês, verificar último dia do mês anterior
+                    const prevMonth = currentMonth - 1;
+                    const prevYear = prevMonth < 0 ? currentYear - 1 : currentYear;
+                    const prevMonthIndex = prevMonth < 0 ? 11 : prevMonth;
+                    const prevMonthKey = `${prevYear}-${prevMonthIndex}`;
+                    const prevMonthDays = getDaysInMonth(prevYear, prevMonthIndex);
+                    const lastDayPrevMonth = `day${prevMonthDays}`;
+                    const prevValue = data[prevMonthKey]?.[lastDayPrevMonth]?.navegaredge;
+                    
+                    if (prevValue && prevValue !== '' && prevValue !== 0) {
+                        const prevIndex = edgeSequence.indexOf(parseInt(prevValue));
+                        if (prevIndex !== -1 && prevIndex < edgeSequence.length - 1) {
+                            availableOptions.push(edgeSequence[prevIndex + 1]);
+                        } else if (prevIndex === edgeSequence.length - 1) {
+                            availableOptions.push(edgeSequence[0]);
+                        }
+                    } else {
+                        availableOptions.push(edgeSequence[0]);
+                    }
+                }
+                
                 const emptyBgClass = (!value && !borderClass.includes('group-background')) ? 'group-empty-background' : '';
                 const finalClass = `${borderClass} ${emptyBgClass}`.trim();
                 html += `<td class="editable ${finalClass}">`;
                 html += `<select onchange="updateCell('${monthKey}', '${dayKey}', '${activity.id}', this.value)">`;
                 html += `<option value="" ${value === '' ? 'selected' : ''}>-</option>`;
-                html += `<option value="5" ${value === 5 ? 'selected' : ''}>5</option>`;
+                
+                // Adicionar as opções disponíveis
+                availableOptions.forEach(opt => {
+                    if (opt !== '') {
+                        html += `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`;
+                    }
+                });
+                
                 html += `</select></td>`;
             }
             // Se for Pesquisas Bing PC, validar múltiplos de 3 (máximo 150)
