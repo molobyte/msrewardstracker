@@ -4,6 +4,14 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const { createClient } = supabase;
 const client = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Função para detectar Enter e executar login
+function handleEnterKey(event) {
+    if (event.key === 'Enter' || event.keyCode === 13) {
+        event.preventDefault();
+        entrar();
+    }
+}
+
 async function cadastrar() {
     const email = document.getElementById("email").value;
     const senha = document.getElementById("senha").value;
