@@ -44,6 +44,22 @@ async function logout() {
     }
 }
 
+// Função para abrir/fechar dropdown do menu de usuário
+function toggleUserMenu() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.toggle('show');
+}
+
+// Fechar dropdown ao clicar fora dele
+document.addEventListener('click', function(event) {
+    const userMenu = document.querySelector('.user-menu-container');
+    const dropdown = document.getElementById('userDropdown');
+    
+    if (dropdown && userMenu && !userMenu.contains(event.target)) {
+        dropdown.classList.remove('show');
+    }
+});
+
 // Verificar sessão antes de inicializar
 checkSession().then(isAuthenticated => {
     if (isAuthenticated) {

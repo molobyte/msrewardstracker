@@ -24,14 +24,36 @@
                     <span class="material-icons">diamond</span> Microsoft Rewards Tracker
                 </div>
                 <div class="user-info">
-                    <span class="user-email">
-                        <span class="material-icons">account_circle</span>
-                        <span id="userEmail">Carregando...</span>
-                    </span>
-                    <a class="logout-link" onclick="logout()">
-                        <span class="material-icons">logout</span>
-                        Sair
-                    </a>
+                    <div class="user-menu-container">
+                        <span class="user-email" onclick="toggleUserMenu()">
+                            <span class="material-icons">account_circle</span>
+                            <span id="userEmail">Carregando...</span>
+                            <span class="material-icons dropdown-icon">arrow_drop_down</span>
+                        </span>
+                        <div id="userDropdown" class="user-dropdown">
+                            <a onclick="alert('Funcionalidade de Perfil em desenvolvimento')">
+                                <span class="material-icons">person</span>
+                                Perfil
+                            </a>
+                            <a onclick="exportData(); toggleUserMenu()">
+                                <span class="material-icons">save_alt</span>
+                                Exportar
+                            </a>
+                            <a onclick="document.getElementById('importFileInput').click(); toggleUserMenu()">
+                                <span class="material-icons">file_upload</span>
+                                Importar
+                            </a>
+                            <a onclick="clearMonth(); toggleUserMenu()">
+                                <span class="material-icons">clear</span>
+                                Limpar Mês
+                            </a>
+                            <div class="dropdown-separator"></div>
+                            <a onclick="logout()" class="logout-item">
+                                <span class="material-icons">logout</span>
+                                Deslogar
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </h1> 
             
@@ -50,16 +72,6 @@
                 <div class="action-buttons">
                     <button onclick="saveDataImmediately()">
                         <span class="material-icons">save</span><span class="button-text"> Salvar</span>
-                    </button>
-                    <button onclick="exportData()">
-                        <span class="material-icons">save_alt</span><span class="button-text"> Exportar</span>
-                    </button>
-                    <button onclick="document.getElementById('importFileInput').click()">
-                        <span class="material-icons">file_upload</span><span class="button-text"> Importar</span>
-                    </button>
-                    <input type="file" id="importFileInput" accept=".json" style="display: none;" onchange="importData(event)">
-                    <button class="clear" onclick="clearMonth()">
-                        <span class="material-icons">clear</span><span class="button-text"> Limpar Mês</span>
                     </button>
                 </div>
             </div>

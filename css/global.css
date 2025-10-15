@@ -50,6 +50,10 @@ h1 {
     font-weight: 400;
 }
 
+.user-menu-container {
+    position: relative;
+}
+
 .user-email {
     font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 12px;
@@ -57,6 +61,14 @@ h1 {
     display: flex;
     align-items: center;
     gap: 5px;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.user-email:hover {
+    background-color: #f0f0f0;
 }
 
 .user-email .material-icons {
@@ -64,25 +76,81 @@ h1 {
     color: #0078d4;
 }
 
-.logout-link {
-    font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 12px;
-    color: #d13438;
-    text-decoration: none;
-    font-weight: 500;
+.user-email .dropdown-icon {
+    font-size: 20px;
+    color: #666;
+    transition: transform 0.3s;
+}
+
+.user-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 200px;
+    margin-top: 8px;
+    z-index: 200;
+    overflow: hidden;
+}
+
+.user-dropdown.show {
+    display: block;
+    animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.user-dropdown a {
     display: flex;
     align-items: center;
-    gap: 5px;
-    transition: color 0.3s;
+    gap: 10px;
+    padding: 12px 16px;
+    color: #202020;
+    text-decoration: none;
+    font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
     cursor: pointer;
+    transition: background-color 0.2s;
 }
 
-.logout-link:hover {
-    color: #a72828;
+.user-dropdown a:hover {
+    background-color: #f5f5f5;
 }
 
-.logout-link .material-icons {
-    font-size: 18px;
+.user-dropdown a .material-icons {
+    font-size: 15px;
+    color: #666;
+}
+
+.user-dropdown .logout-item {
+    color: #d13438;
+    font-weight: bold;
+}
+
+.user-dropdown .logout-item:hover {
+    background-color: #fef0f0;
+}
+
+.user-dropdown .logout-item .material-icons {
+    color: #d13438;
+}
+
+.dropdown-separator {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 4px 0;
 }
 
 .controls {
@@ -541,7 +609,7 @@ select {
 }
 
 /* Media query para telas menores - ocultar textos dos botões */
-@media screen and (max-width: 940px) {
+@media screen and (max-width: 545px) {
     .button-text {
         display: none;
     }
