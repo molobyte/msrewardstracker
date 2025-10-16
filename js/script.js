@@ -2092,10 +2092,27 @@ async function saveToSupabase() {
         
         console.log('✅ Dados salvos com sucesso no Supabase!');
         hasUnsavedChanges = false;
+        updateLastSaveTime();
         
     } catch (error) {
         console.error('❌ Erro ao salvar no Supabase:', error);
         alert('⚠️ Erro ao salvar dados online. Os dados foram salvos localmente.');
+    }
+}
+
+// Função para atualizar o horário do último salvamento
+function updateLastSaveTime() {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const dateTimeString = `Último save: ${day}/${month}/${year} ${hours}:${minutes}`;
+    
+    const lastSaveElement = document.getElementById('lastSaveTime');
+    if (lastSaveElement) {
+        lastSaveElement.textContent = dateTimeString;
     }
 }
 
@@ -2150,6 +2167,7 @@ async function loadData() {
             saveToLocalStorage(userId, data);
             
             console.log('✅ Dados carregados do Supabase!');
+            updateLastSaveTime();
         } else {
             // Nenhum dado no Supabase, tentar carregar do localStorage deste usuário
             console.log('❓ Nenhum dado encontrado no Supabase. Tentando localStorage...');

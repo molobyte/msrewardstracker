@@ -20,7 +20,7 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    background: white;
+    background: linear-gradient(0deg, #ffffff 60%, #d8f3f7 100%);
     z-index: 100;
     padding: 15px;
 }
@@ -68,7 +68,7 @@ h1 {
 }
 
 .user-email:hover {
-    background-color: #f0f0f0;
+    background-color: #d6e2e29a;
 }
 
 .user-email .material-icons {
@@ -240,6 +240,16 @@ h1 {
 
 .action-buttons button.clear:hover {
     background: #a72828;
+}
+
+.last-save-time {
+    font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 11px;
+    color: #666;
+    margin-right: 10px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
 }
 
 table {
