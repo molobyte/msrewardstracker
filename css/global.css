@@ -619,7 +619,7 @@ select {
 }
 
 /* Media query para telas menores - ocultar textos dos botões */
-@media screen and (max-width: 545px) {
+@media screen and (max-width: 750px) {
     .button-text {
         display: none;
     }
@@ -633,6 +633,18 @@ select {
     
     .month-selector {
         gap: 5px;
+    }
+}
+
+@media screen and (max-width: 530px) {
+    .last-save-time{
+        display: none;
+    }
+}
+
+@media screen and (max-width: 340px) {
+    .action-buttons{
+        display: none;
     }
 }
 
