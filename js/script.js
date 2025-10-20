@@ -169,6 +169,7 @@ async function init() {
     await loadData();
     updateMonthDisplay();
     generateTable();
+    await updateLastSaveTime();
 }
 
 function updateMonthDisplay() {
@@ -2100,19 +2101,46 @@ async function saveToSupabase() {
     }
 }
 
-// Função para atualizar o horário do último salvamento
-function updateLastSaveTime() {
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const dateTimeString = `Último save: ${day}/${month}/${year} ${hours}:${minutes}`;
-    
-    const lastSaveElement = document.getElementById('lastSaveTime');
-    if (lastSaveElement) {
-        lastSaveElement.textContent = dateTimeString;
+// Função para atualizar o horário do último salvamento baseado no Supabase
+async function updateLastSaveTime() {
+    try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        
+        if (!sessionData?.session) {
+            return;
+        }
+        
+        const userId = sessionData.session.user.id;
+        
+        // Buscar o registro mais recente do usuário no Supabase
+        const { data: latestRecord, error } = await supabaseClient
+            .from('user_data')
+            .select('created_at')
+            .eq('uuid', userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+        
+        if (error || !latestRecord) {
+            console.log('Nenhum registro de save encontrado no Supabase');
+            return;
+        }
+        
+        // Converter o timestamp do Supabase para horário local
+        const saveDate = new Date(latestRecord.created_at);
+        const day = String(saveDate.getDate()).padStart(2, '0');
+        const month = String(saveDate.getMonth() + 1).padStart(2, '0');
+        const year = saveDate.getFullYear();
+        const hours = String(saveDate.getHours()).padStart(2, '0');
+        const minutes = String(saveDate.getMinutes()).padStart(2, '0');
+        const dateTimeString = `Último save: ${day}/${month}/${year} ${hours}:${minutes}`;
+        
+        const lastSaveElement = document.getElementById('lastSaveTime');
+        if (lastSaveElement) {
+            lastSaveElement.textContent = dateTimeString;
+        }
+    } catch (error) {
+        console.error('Erro ao buscar último save:', error);
     }
 }
 
@@ -2167,7 +2195,6 @@ async function loadData() {
             saveToLocalStorage(userId, data);
             
             console.log('✅ Dados carregados do Supabase!');
-            updateLastSaveTime();
         } else {
             // Nenhum dado no Supabase, tentar carregar do localStorage deste usuário
             console.log('❓ Nenhum dado encontrado no Supabase. Tentando localStorage...');
