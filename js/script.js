@@ -100,6 +100,26 @@ function loadFromLocalStorage(userId) {
     return null;
 }
 
+// Detectar informações básicas do dispositivo/browser para exibição
+function getDeviceInfo() {
+    const ua = navigator.userAgent || '';
+    let os = 'Desconhecido';
+    let browser = 'Desconhecido';
+
+    if (ua.indexOf('Win') !== -1) os = 'Windows';
+    else if (ua.indexOf('Mac') !== -1) os = 'macOS';
+    else if (ua.indexOf('Linux') !== -1) os = 'Linux';
+    else if (ua.indexOf('Android') !== -1) os = 'Android';
+    else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
+
+    if (ua.indexOf('Edg') !== -1) browser = 'Edge';
+    else if (ua.indexOf('Chrome') !== -1) browser = 'Chrome';
+    else if (ua.indexOf('Firefox') !== -1) browser = 'Firefox';
+    else if (ua.indexOf('Safari') !== -1 && ua.indexOf('Chrome') === -1) browser = 'Safari';
+
+    return `${browser} no ${os}`;
+}
+
 const monthNames = ['Jan.', 'Fev.', 'Mar.', 'Abr.', 'Mai.', 'Jun.', 
                     'Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.', 'Dez.'];
 
@@ -2047,11 +2067,15 @@ async function saveToSupabase() {
             throw selectError;
         }
         
+        // Capturar info do dispositivo atual (cliente)
+        const deviceInfo = getDeviceInfo();
+
         const dataToSave = {
             uuid: userId,
             year: currentYear,
             month: monthForDB, // Mês de 1 a 12
             json: monthData,
+            device_info: deviceInfo,
             created_at: new Date().toISOString()
         };
         
@@ -2062,6 +2086,7 @@ async function saveToSupabase() {
                 .from('user_data')
                 .update({
                     json: monthData,
+                    device_info: deviceInfo,
                     created_at: new Date().toISOString()
                 })
                 .eq('uuid', userId)
@@ -2112,10 +2137,10 @@ async function updateLastSaveTime() {
         
         const userId = sessionData.session.user.id;
         
-        // Buscar o registro mais recente do usuário no Supabase
+        // Buscar o registro mais recente do usuário no Supabase (incluindo device_info se existir)
         const { data: latestRecord, error } = await supabaseClient
             .from('user_data')
-            .select('created_at')
+            .select('created_at, device_info')
             .eq('uuid', userId)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -2138,6 +2163,13 @@ async function updateLastSaveTime() {
         const lastSaveElement = document.getElementById('lastSaveTime');
         if (lastSaveElement) {
             lastSaveElement.textContent = dateTimeString;
+        }
+        
+        // Exibir nome do dispositivo (se disponível) ao lado
+        const deviceEl = document.getElementById('lastSaveDevice');
+        if (deviceEl) {
+            const device = latestRecord?.device_info || getDeviceInfo();
+            deviceEl.textContent = device;
         }
     } catch (error) {
         console.error('Erro ao buscar último save:', error);
