@@ -106,11 +106,12 @@ function getDeviceInfo() {
     let os = 'Desconhecido';
     let browser = 'Desconhecido';
 
-    if (ua.indexOf('Win') !== -1) os = 'Windows';
+    // IMPORTANTE: Verificar mobile PRIMEIRO (antes de Mac/Linux)
+    if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
+    else if (ua.indexOf('Android') !== -1) os = 'Android';
+    else if (ua.indexOf('Win') !== -1) os = 'Windows';
     else if (ua.indexOf('Mac') !== -1) os = 'macOS';
     else if (ua.indexOf('Linux') !== -1) os = 'Linux';
-    else if (ua.indexOf('Android') !== -1) os = 'Android';
-    else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
 
     if (ua.indexOf('Edg') !== -1) browser = 'Edge';
     else if (ua.indexOf('Chrome') !== -1) browser = 'Chrome';
