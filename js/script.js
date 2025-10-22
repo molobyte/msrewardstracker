@@ -103,22 +103,22 @@ function loadFromLocalStorage(userId) {
 // Detectar informações básicas do dispositivo/browser para exibição
 function getDeviceInfo() {
     const ua = navigator.userAgent || '';
-    let os = 'Desconhecido';
-    let browser = 'Desconhecido';
+    let os = 'unknown';
+    let browser = 'unknown';
 
     // IMPORTANTE: Verificar mobile PRIMEIRO (antes de Mac/Linux)
-    if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
-    else if (ua.indexOf('Android') !== -1) os = 'Android';
-    else if (ua.indexOf('Win') !== -1) os = 'Windows';
-    else if (ua.indexOf('Mac') !== -1) os = 'macOS';
-    else if (ua.indexOf('Linux') !== -1) os = 'Linux';
+    if (/iPhone|iPad|iPod/.test(ua)) os = 'ios';
+    else if (ua.indexOf('Android') !== -1) os = 'android';
+    else if (ua.indexOf('Win') !== -1) os = 'windows';
+    else if (ua.indexOf('Mac') !== -1) os = 'macos';
+    else if (ua.indexOf('Linux') !== -1) os = 'linux';
 
-    if (ua.indexOf('Edg') !== -1) browser = 'Edge';
-    else if (ua.indexOf('Chrome') !== -1) browser = 'Chrome';
-    else if (ua.indexOf('Firefox') !== -1) browser = 'Firefox';
-    else if (ua.indexOf('Safari') !== -1 && ua.indexOf('Chrome') === -1) browser = 'Safari';
+    if (ua.indexOf('Edg') !== -1) browser = 'edge';
+    else if (ua.indexOf('Chrome') !== -1) browser = 'chrome';
+    else if (ua.indexOf('Firefox') !== -1) browser = 'firefox';
+    else if (ua.indexOf('Safari') !== -1 && ua.indexOf('Chrome') === -1) browser = 'safari';
 
-    return `${browser} no ${os}`;
+    return { os, browser };
 }
 
 const monthNames = ['Jan.', 'Fev.', 'Mar.', 'Abr.', 'Mai.', 'Jun.', 
@@ -2166,11 +2166,55 @@ async function updateLastSaveTime() {
             lastSaveElement.textContent = dateTimeString;
         }
         
-        // Exibir nome do dispositivo (se disponível) ao lado
+        // Exibir ícones do dispositivo (OS e Browser)
         const deviceEl = document.getElementById('lastSaveDevice');
         if (deviceEl) {
-            const device = latestRecord?.device_info || getDeviceInfo();
-            deviceEl.textContent = device;
+            let deviceData = latestRecord?.device_info || getDeviceInfo();
+            
+            // Se for string JSON, fazer parse para objeto
+            if (typeof deviceData === 'string') {
+                try {
+                    deviceData = JSON.parse(deviceData);
+                    console.log('📱 Device data convertido de string para objeto:', deviceData);
+                } catch (e) {
+                    console.error('❌ Erro ao fazer parse do device_info:', e);
+                    deviceData = getDeviceInfo(); // Fallback
+                }
+            }
+            
+            // Extrair OS e Browser
+            let os = 'unknown';
+            let browser = 'unknown';
+            
+            if (typeof deviceData === 'object' && deviceData !== null) {
+                os = deviceData.os || 'unknown';
+                browser = deviceData.browser || 'unknown';
+                console.log('✅ OS:', os, '| Browser:', browser);
+            }
+            
+            // Mapear nomes para títulos amigáveis
+            const osNames = {
+                'windows': 'Windows',
+                'macos': 'macOS',
+                'linux': 'Linux',
+                'android': 'Android',
+                'ios': 'iOS',
+                'unknown': 'Desconhecido'
+            };
+            
+            const browserNames = {
+                'chrome': 'Chrome',
+                'edge': 'Edge',
+                'firefox': 'Firefox',
+                'safari': 'Safari',
+                'unknown': 'Desconhecido'
+            };
+            
+            // Renderizar ícones (SVG com fallback para unknown.svg)
+            const osIcon = `<img src="icons/${os}.svg" alt="${osNames[os]}" title="${osNames[os]}" style="width: 20px; height: 20px; margin-right: 5px;" onerror="this.src='icons/unknown.svg'">`;
+            const browserIcon = `<img src="icons/${browser}.svg" alt="${browserNames[browser]}" title="${browserNames[browser]}" style="width: 20px; height: 20px;" onerror="this.src='icons/unknown.svg'">`;
+            
+            deviceEl.innerHTML = osIcon + browserIcon;
         }
     } catch (error) {
         console.error('Erro ao buscar último save:', error);
