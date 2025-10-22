@@ -2211,8 +2211,8 @@ async function updateLastSaveTime() {
             };
             
             // Renderizar ícones (SVG com fallback para unknown.svg)
-            const osIcon = `<img src="icons/${os}.svg" alt="${osNames[os]}" title="${osNames[os]}" style="width: 20px; height: 20px; margin-right: 5px;" onerror="this.src='icons/unknown.svg'">`;
-            const browserIcon = `<img src="icons/${browser}.svg" alt="${browserNames[browser]}" title="${browserNames[browser]}" style="width: 20px; height: 20px;" onerror="this.src='icons/unknown.svg'">`;
+            const osIcon = `<img src="icons/${os}.svg" alt="${osNames[os]}" title="${osNames[os]}" style="width: 16px; height: 16px; margin-right: 5px;" onerror="this.src='icons/unknown.svg'">`;
+            const browserIcon = `<img src="icons/${browser}.svg" alt="${browserNames[browser]}" title="${browserNames[browser]}" style="width: 16px; height: 16px;" onerror="this.src='icons/unknown.svg'">`;
             
             deviceEl.innerHTML = osIcon + browserIcon;
         }

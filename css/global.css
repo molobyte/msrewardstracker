@@ -242,14 +242,31 @@ h1 {
     background: #a72828;
 }
 
+.action-buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .last-save-time {
     font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 11px;
     color: #666;
-    margin-right: 10px;
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
+    line-height: 1;
+}
+
+.last-save-device {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+.last-save-device img {
+    vertical-align: middle;
+    opacity: 0.5;
 }
 
 table {
