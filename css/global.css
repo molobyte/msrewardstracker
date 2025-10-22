@@ -219,6 +219,20 @@ h1 {
     align-items: center;
     justify-content: center;
     gap: 5px;
+    transition: background 0.3s ease;
+}
+
+.action-buttons button:disabled {
+    background: #999999;
+    cursor: not-allowed;
+}
+
+.action-buttons button:not(:disabled):hover {
+    background: #0d6b0d;
+}
+
+.action-buttons button:disabled:hover {
+    background: #999999;
 }
 
 .action-buttons button .material-icons {

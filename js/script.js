@@ -79,6 +79,20 @@ let saveTimeout = null; // Timer para debounce de 30 segundos
 let hasUnsavedChanges = false; // Flag para indicar mudanças não salvas
 let currentUserId = null; // UUID do usuário atual logado
 
+// Função para atualizar o estado visual do botão de salvar
+function updateSaveButtonState() {
+    const saveButton = document.getElementById('saveButton');
+    if (saveButton) {
+        if (hasUnsavedChanges) {
+            saveButton.disabled = false;
+            console.log('🟢 Botão de salvar HABILITADO (há mudanças)');
+        } else {
+            saveButton.disabled = true;
+            console.log('⚫ Botão de salvar DESABILITADO (sem mudanças)');
+        }
+    }
+}
+
 // Funções auxiliares para localStorage segregado por usuário
 function getLocalStorageKey(userId) {
     return `msRewardsData_${userId}`;
@@ -191,6 +205,7 @@ async function init() {
     updateMonthDisplay();
     generateTable();
     await updateLastSaveTime();
+    updateSaveButtonState(); // Inicializar estado do botão
 }
 
 function updateMonthDisplay() {
@@ -1996,6 +2011,7 @@ async function saveData(immediate = false) {
         console.warn('⚠️ Nenhum usuário logado, não salvando no localStorage');
     }
     hasUnsavedChanges = true;
+    updateSaveButtonState(); // Atualizar estado do botão
     
     // Se não for salvamento imediato, aplicar debounce de 30 segundos
     if (!immediate) {
@@ -2039,6 +2055,7 @@ async function saveToSupabase() {
         if (!sessionData?.session) {
             console.warn('Usuário não autenticado. Salvando apenas no localStorage.');
             hasUnsavedChanges = false;
+            updateSaveButtonState(); // Atualizar estado do botão
             return;
         }
         
@@ -2119,6 +2136,7 @@ async function saveToSupabase() {
         
         console.log('✅ Dados salvos com sucesso no Supabase!');
         hasUnsavedChanges = false;
+        updateSaveButtonState(); // Atualizar estado do botão
         updateLastSaveTime();
         
     } catch (error) {
@@ -2225,13 +2243,11 @@ async function updateLastSaveTime() {
 async function saveDataImmediately() {
     if (!hasUnsavedChanges) {
         console.log('ℹ️ Nenhuma alteração para salvar');
-        alert('✅ Não há alterações para salvar!');
         return;
     }
     
     console.log('🚀 Salvamento manual iniciado...');
     await saveData(true);
-    alert('✅ Dados salvos com sucesso!');
 }
 
 async function loadData() {
