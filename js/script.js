@@ -2246,6 +2246,11 @@ async function saveDataImmediately() {
         return;
     }
     
+    // Tocar som de salvamento
+    const saveSound = new Audio('sfx/save.mp3');
+    saveSound.volume = 0.5; // Volume a 50%
+    saveSound.play().catch(e => console.log('Não foi possível tocar o som:', e));
+    
     console.log('🚀 Salvamento manual iniciado...');
     await saveData(true);
 }
