@@ -145,6 +145,7 @@ const activities = [
     { id: 'pesquisabingpc', name: 'Pesquisas do Bing', color: '#FFFF00', defaultValue: 30 },
     { id: 'diariabing', name: 'Diaria do App Bing', color: '#5a8eed', defaultValue: 25 },
     { id: 'noticiasbing', name: 'Noticias do App Bing', color: '#5a8eed', defaultValue: 150 },
+    { id: 'emailsoutlook', name: 'Ler emails do Outlook', color: '#5a8eed', defaultValue: 5 },
     { id: 'useappxbox', name: 'Use o App Xbox no Celular', color: '#00B050', defaultValue: 5 },
     { id: 'playjewels', name: 'Jogar Jewels no Celular', color: '#00B050', defaultValue: 5 },
     { id: 'playgamepass', name: 'Jogar um jogo do Gamepass', color: '#92D050', defaultValue: 20 },
@@ -196,6 +197,13 @@ const BONUS_CONFIG = {
         nome: 'Bonus Semanal do Windows',
         diasPorSemana: 5,
         atividade: 'playwindows'
+    },
+    // Bônus de Emails do Outlook - 7 dias consecutivos de Ler emails do Outlook
+    bonusEmailsOutlook: {
+        valor: 100,
+        nome: 'Bonus de Emails do Outlook',
+        diasConsecutivos: 7,
+        atividade: 'emailsoutlook'
     }
 };
 
@@ -451,6 +459,54 @@ function generateTable() {
             // Dia vazio ou sem pontos, resetar contador
             consecutiveDaysGamepass = 0;
             groupStartGamepass = 0;
+        }
+    }
+
+    // === BÔNUS 4.5: Bonus de Emails do Outlook (7 dias de Ler emails do Outlook) ===
+    let consecutiveDaysOutlook = 0;
+    let groupStartOutlook = 0;
+    
+    // Contar dias consecutivos do final do mês anterior
+    for (let d = prevMonthDaysForBonus; d >= 1; d--) {
+        const dKey = `day${d}`;
+        const dValue = data[prevMonthKeyForBonus]?.[dKey]?.emailsoutlook;
+        if (dValue && dValue !== '' && dValue !== 0) {
+            consecutiveDaysOutlook++;
+        } else {
+            break;
+        }
+    }
+    
+    // Se já havia dias consecutivos do mês anterior, ajustar
+    if (consecutiveDaysOutlook > 0) {
+        consecutiveDaysOutlook = Math.min(consecutiveDaysOutlook, 6); // Máximo 6 do mês anterior
+    }
+    
+    // Processar dias do mês atual para detectar bônus de Outlook
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dKey = `day${d}`;
+        const dValue = data[monthKey][dKey]?.emailsoutlook;
+        
+        if (dValue && dValue !== '' && dValue !== 0) {
+            if (consecutiveDaysOutlook === 0) {
+                groupStartOutlook = d;
+            }
+            consecutiveDaysOutlook++;
+            
+            // Se completou 7 dias, adicionar bônus no 7º dia
+            if (consecutiveDaysOutlook === 7) {
+                if (!bonusPerDay[d]) {
+                    bonusPerDay[d] = { total: 0, items: [] };
+                }
+                bonusPerDay[d].total += BONUS_CONFIG.bonusEmailsOutlook.valor;
+                bonusPerDay[d].items.push({ value: BONUS_CONFIG.bonusEmailsOutlook.valor, name: BONUS_CONFIG.bonusEmailsOutlook.nome });
+                consecutiveDaysOutlook = 0; // Resetar para o próximo grupo
+                groupStartOutlook = 0;
+            }
+        } else {
+            // Dia vazio ou sem pontos, resetar contador
+            consecutiveDaysOutlook = 0;
+            groupStartOutlook = 0;
         }
     }
 
@@ -745,9 +801,9 @@ function generateTable() {
     activities.forEach(activity => {
         html += `<tr><td class="row-header sub" style="background: ${activity.color}; border-width: 0px">${activity.name}</td>`;
         
-        // Para Conjunto Diario, Pesquisas Bing PC e Navegar com Edge, primeiro identificar todos os grupos no mês
+        // Para Conjunto Diario, Pesquisas Bing PC, Navegar com Edge e Ler emails do Outlook, primeiro identificar todos os grupos no mês
         let groups = [];
-        const groupDays = activity.id === 'conjuntodiario' ? 10 : activity.id === 'pesquisabingpc' ? 7 : activity.id === 'navegaredge' ? 7 : activity.id === 'playgamepass' ? 7 : 0;
+        const groupDays = activity.id === 'conjuntodiario' ? 10 : activity.id === 'pesquisabingpc' ? 7 : activity.id === 'navegaredge' ? 7 : activity.id === 'playgamepass' ? 7 : activity.id === 'emailsoutlook' ? 7 : 0;
         
         // Para playconsole, identificar grupos de 5 dias dentro de cada semana
         let consoleGroups = [];
@@ -1140,9 +1196,9 @@ function generateTable() {
             const value = data[monthKey][dayKey]?.[activity.id] || '';
             const dayOfWeek = getDayOfWeek(currentYear, currentMonth, day);
             
-            // Determinar se deve ter borda de grupo (para Conjunto Diario, Pesquisas Bing PC e Navegar com Edge)
+            // Determinar se deve ter borda de grupo (para Conjunto Diario, Pesquisas Bing PC, Navegar com Edge e Ler emails do Outlook)
             let borderClasses = [];
-            if (activity.id === 'conjuntodiario' || activity.id === 'pesquisabingpc' || activity.id === 'navegaredge') {
+            if (activity.id === 'conjuntodiario' || activity.id === 'pesquisabingpc' || activity.id === 'navegaredge' || activity.id === 'emailsoutlook') {
                 // Verificar se este dia está dentro de algum grupo
                 for (let group of groups) {
                     if (day >= group.start && day <= group.end) {
@@ -1543,6 +1599,16 @@ function generateTable() {
                                 step="3"
                                 onchange="validateMultipleOf3('${monthKey}', '${dayKey}', '${activity.id}', this, 30)">
                             </td>`;
+            }
+            // Se for Ler emails do Outlook, usar select com opções de 0 a 5
+            else if (activity.id === 'emailsoutlook') {
+                const emptyBgClass = (!value && !borderClass.includes('group-background')) ? 'group-empty-background' : '';
+                const finalClass = `${borderClass} ${emptyBgClass}`.trim();
+                html += `<td class="editable ${finalClass}">`;
+                html += `<select onchange="updateCell('${monthKey}', '${dayKey}', '${activity.id}', this.value)">`;
+                html += `<option value="" ${value === '' ? 'selected' : ''}>-</option>`;
+                html += `<option value="5" ${value === 5 ? 'selected' : ''}>5</option>`;
+                html += `</select></td>`;
             }
             // Se for Jogar Jewels no Celular, usar select com opções 0 ou 10
             else if (activity.id === 'playjewels') {
