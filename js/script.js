@@ -153,6 +153,123 @@ const activities = [
     { id: 'playwindows', name: 'Jogar um jogo no PC', color: '#92D050', defaultValue: 5 }
 ];
 
+// Função auxiliar para adicionar bônus automático sem duplicatas
+function addAutoBonusIfNotExists(monthKey, day, bonusValue, bonusName, activityId) {
+    const dayKey = `day${day}`;
+    
+    // Inicializar estrutura de bônus automáticos se não existir
+    if (!data[monthKey].bonuses) {
+        data[monthKey].bonuses = {};
+    }
+    
+    if (!data[monthKey].bonuses[dayKey]) {
+        data[monthKey].bonuses[dayKey] = [];
+    }
+    
+    // Verificar se este bônus já existe (mesma atividade e valor)
+    const exists = data[monthKey].bonuses[dayKey].some(bonus => 
+        bonus.atividade === activityId && bonus.points === bonusValue
+    );
+    
+    if (!exists) {
+        // Adicionar o bônus
+        data[monthKey].bonuses[dayKey].push({
+            atividade: activityId,
+            points: bonusValue,
+            nome: bonusName
+        });
+        console.log(`✅ Bônus automático adicionado: ${bonusName} (+${bonusValue} pts) no dia ${day}`);
+        return true;
+    }
+    
+    return false;
+}
+
+// Função para carregar bônus automáticos salvos no bonusPerDay
+function loadAutoBonuses(monthKey, daysInMonth, bonusPerDay) {
+    if (data[monthKey].bonuses) {
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dayKey = `day${d}`;
+            const autoBonusesForDay = data[monthKey].bonuses[dayKey];
+            
+            if (autoBonusesForDay && autoBonusesForDay.length > 0) {
+                if (!bonusPerDay[d]) {
+                    bonusPerDay[d] = { total: 0, items: [] };
+                }
+                
+                // Adicionar cada bônus automático ao dia
+                autoBonusesForDay.forEach(autoBonus => {
+                    bonusPerDay[d].total += autoBonus.points;
+                    bonusPerDay[d].items.push({ 
+                        value: autoBonus.points, 
+                        name: autoBonus.nome || autoBonus.atividade
+                    });
+                });
+            }
+        }
+    }
+}
+
+// Função para limpar bônus automáticos de um dia específico
+function clearAutoBonusesForDay(monthKey, day) {
+    const dayKey = `day${day}`;
+    
+    if (data[monthKey].bonuses && data[monthKey].bonuses[dayKey]) {
+        console.log(`🧹 Limpando bônus automáticos do dia ${day}`);
+        delete data[monthKey].bonuses[dayKey];
+    }
+}
+
+// Função para encontrar o último dia com bônus de uma atividade no mês anterior
+function findLastBonusDayInPrevMonth(prevMonthKey, activityId, prevMonthDays) {
+    if (!data[prevMonthKey] || !data[prevMonthKey].bonuses) {
+        return -1; // Não há bônus salvos no mês anterior
+    }
+    
+    // Percorrer de trás para frente para encontrar o último bônus
+    for (let d = prevMonthDays; d >= 1; d--) {
+        const dayKey = `day${d}`;
+        const bonusesForDay = data[prevMonthKey].bonuses[dayKey];
+        
+        if (bonusesForDay && bonusesForDay.length > 0) {
+            // Verificar se algum bônus é da atividade procurada
+            const hasActivityBonus = bonusesForDay.some(bonus => bonus.atividade === activityId);
+            if (hasActivityBonus) {
+                return d; // Retorna o dia do último bônus
+            }
+        }
+    }
+    
+    return -1; // Não encontrou bônus dessa atividade
+}
+
+// Função para calcular dias consecutivos considerando último bônus
+function calculateConsecutiveDaysFromPrevMonth(prevMonthKey, prevMonthDays, activityId, maxDays) {
+    // Verificar se existe um bônus da atividade no mês anterior
+    const lastBonusDay = findLastBonusDayInPrevMonth(prevMonthKey, activityId, prevMonthDays);
+    
+    if (lastBonusDay > 0) {
+        // Há um bônus salvo - calcular dias restantes da sequência
+        const daysRemaining = prevMonthDays - lastBonusDay;
+        console.log(`📅 Último bônus de ${activityId} encontrado no dia ${lastBonusDay} do mês anterior. Dias restantes: ${daysRemaining}`);
+        return Math.min(daysRemaining, maxDays - 1); // Máximo (maxDays - 1) dias do mês anterior
+    }
+    
+    // Não há bônus - contar dias consecutivos de trás para frente (lógica antiga)
+    let consecutiveDays = 0;
+    for (let d = prevMonthDays; d >= 1; d--) {
+        const dKey = `day${d}`;
+        const dValue = data[prevMonthKey]?.[dKey]?.[activityId];
+        if (dValue && dValue !== '' && dValue !== 0) {
+            consecutiveDays++;
+        } else {
+            break; // Para ao encontrar um gap
+        }
+    }
+    
+    return Math.min(consecutiveDays, maxDays - 1);
+}
+
 // ===== CONFIGURAÇÕES DE BÔNUS =====
 // Altere os valores abaixo para modificar os bônus concedidos
 const BONUS_CONFIG = {
@@ -253,6 +370,14 @@ function generateTable() {
     html += '</tr></thead><tbody>';
 
     // CALCULAR BÔNUS ANTES DAS LINHAS DE ACUMULADO/TOTAL
+    // Limpar todos os bônus automáticos antes de recalcular
+    if (!data[monthKey].bonuses) {
+        data[monthKey].bonuses = {};
+    } else {
+        // Limpar bônus automáticos existentes para recalcular
+        data[monthKey].bonuses = {};
+    }
+    
     // Detectar grupos de 7 dias completados de pesquisabingpc para bônus
     // Estrutura: bonusPerDay[day] = { total: number, items: [{value: number, name: string}] }
     let bonusPerDay = {};
@@ -269,21 +394,13 @@ function generateTable() {
     const prevMonthKeyForBonus = `${prevYearForBonus}-${prevMonthIndexForBonus}`;
     const prevMonthDaysForBonus = getDaysInMonth(prevYearForBonus, prevMonthIndexForBonus);
     
-    // Contar dias consecutivos do final do mês anterior
-    for (let d = prevMonthDaysForBonus; d >= 1; d--) {
-        const dKey = `day${d}`;
-        const dValue = data[prevMonthKeyForBonus]?.[dKey]?.pesquisabingpc;
-        if (dValue && dValue !== '' && dValue !== 0) {
-            consecutiveDays++;
-        } else {
-            break;
-        }
-    }
-    
-    // Se já havia dias consecutivos do mês anterior, ajustar
-    if (consecutiveDays > 0) {
-        consecutiveDays = Math.min(consecutiveDays, 6); // Máximo 6 do mês anterior
-    }
+    // Usar nova lógica para calcular dias consecutivos considerando último bônus
+    consecutiveDays = calculateConsecutiveDaysFromPrevMonth(
+        prevMonthKeyForBonus, 
+        prevMonthDaysForBonus, 
+        'pesquisabingpc', 
+        7
+    );
     
     // Processar dias do mês atual para detectar bônus
     for (let d = 1; d <= daysInMonth; d++) {
@@ -303,6 +420,10 @@ function generateTable() {
                 }
                 bonusPerDay[d].total += BONUS_CONFIG.quebraCabecasBing.valor;
                 bonusPerDay[d].items.push({ value: BONUS_CONFIG.quebraCabecasBing.valor, name: BONUS_CONFIG.quebraCabecasBing.nome });
+                
+                // Salvar bônus automático no JSON
+                addAutoBonusIfNotExists(monthKey, d, BONUS_CONFIG.quebraCabecasBing.valor, BONUS_CONFIG.quebraCabecasBing.nome, 'pesquisabingpc');
+                
                 consecutiveDays = 0; // Resetar para o próximo grupo
                 groupStart = 0;
             }
@@ -317,21 +438,13 @@ function generateTable() {
     let consecutiveDaysConjunto = 0;
     let groupStartConjunto = 0;
     
-    // Contar dias consecutivos do final do mês anterior
-    for (let d = prevMonthDaysForBonus; d >= 1; d--) {
-        const dKey = `day${d}`;
-        const dValue = data[prevMonthKeyForBonus]?.[dKey]?.conjuntodiario;
-        if (dValue && dValue !== '' && dValue !== 0) {
-            consecutiveDaysConjunto++;
-        } else {
-            break;
-        }
-    }
-    
-    // Se já havia dias consecutivos do mês anterior, ajustar
-    if (consecutiveDaysConjunto > 0) {
-        consecutiveDaysConjunto = Math.min(consecutiveDaysConjunto, 9); // Máximo 9 do mês anterior
-    }
+    // Usar nova lógica para calcular dias consecutivos considerando último bônus
+    consecutiveDaysConjunto = calculateConsecutiveDaysFromPrevMonth(
+        prevMonthKeyForBonus, 
+        prevMonthDaysForBonus, 
+        'conjuntodiario', 
+        10
+    );
     
     // Processar dias do mês atual para detectar bônus de Conjunto Diario
     for (let d = 1; d <= daysInMonth; d++) {
@@ -351,6 +464,10 @@ function generateTable() {
                 }
                 bonusPerDay[d].total += BONUS_CONFIG.bonusSequenciaBing.valor;
                 bonusPerDay[d].items.push({ value: BONUS_CONFIG.bonusSequenciaBing.valor, name: BONUS_CONFIG.bonusSequenciaBing.nome });
+                
+                // Salvar bônus automático no JSON
+                addAutoBonusIfNotExists(monthKey, d, BONUS_CONFIG.bonusSequenciaBing.valor, BONUS_CONFIG.bonusSequenciaBing.nome, 'conjuntodiario');
+                
                 consecutiveDaysConjunto = 0; // Resetar para o próximo grupo
                 groupStartConjunto = 0;
             }
@@ -418,21 +535,13 @@ function generateTable() {
     let consecutiveDaysGamepass = 0;
     let groupStartGamepass = 0;
     
-    // Contar dias consecutivos do final do mês anterior
-    for (let d = prevMonthDaysForBonus; d >= 1; d--) {
-        const dKey = `day${d}`;
-        const dValue = data[prevMonthKeyForBonus]?.[dKey]?.playgamepass;
-        if (dValue && dValue !== '' && dValue !== 0) {
-            consecutiveDaysGamepass++;
-        } else {
-            break;
-        }
-    }
-    
-    // Se já havia dias consecutivos do mês anterior, ajustar
-    if (consecutiveDaysGamepass > 0) {
-        consecutiveDaysGamepass = Math.min(consecutiveDaysGamepass, 6); // Máximo 6 do mês anterior
-    }
+    // Usar nova lógica para calcular dias consecutivos considerando último bônus
+    consecutiveDaysGamepass = calculateConsecutiveDaysFromPrevMonth(
+        prevMonthKeyForBonus, 
+        prevMonthDaysForBonus, 
+        'playgamepass', 
+        7
+    );
     
     // Processar dias do mês atual para detectar bônus de Gamepass
     for (let d = 1; d <= daysInMonth; d++) {
@@ -452,6 +561,10 @@ function generateTable() {
                 }
                 bonusPerDay[d].total += BONUS_CONFIG.sequenciasSemanaisGamepass.valor;
                 bonusPerDay[d].items.push({ value: BONUS_CONFIG.sequenciasSemanaisGamepass.valor, name: BONUS_CONFIG.sequenciasSemanaisGamepass.nome });
+                
+                // Salvar bônus automático no JSON
+                addAutoBonusIfNotExists(monthKey, d, BONUS_CONFIG.sequenciasSemanaisGamepass.valor, BONUS_CONFIG.sequenciasSemanaisGamepass.nome, 'playgamepass');
+                
                 consecutiveDaysGamepass = 0; // Resetar para o próximo grupo
                 groupStartGamepass = 0;
             }
@@ -466,21 +579,13 @@ function generateTable() {
     let consecutiveDaysOutlook = 0;
     let groupStartOutlook = 0;
     
-    // Contar dias consecutivos do final do mês anterior
-    for (let d = prevMonthDaysForBonus; d >= 1; d--) {
-        const dKey = `day${d}`;
-        const dValue = data[prevMonthKeyForBonus]?.[dKey]?.emailsoutlook;
-        if (dValue && dValue !== '' && dValue !== 0) {
-            consecutiveDaysOutlook++;
-        } else {
-            break;
-        }
-    }
-    
-    // Se já havia dias consecutivos do mês anterior, ajustar
-    if (consecutiveDaysOutlook > 0) {
-        consecutiveDaysOutlook = Math.min(consecutiveDaysOutlook, 6); // Máximo 6 do mês anterior
-    }
+    // Usar nova lógica para calcular dias consecutivos considerando último bônus
+    consecutiveDaysOutlook = calculateConsecutiveDaysFromPrevMonth(
+        prevMonthKeyForBonus, 
+        prevMonthDaysForBonus, 
+        'emailsoutlook', 
+        7
+    );
     
     // Processar dias do mês atual para detectar bônus de Outlook
     for (let d = 1; d <= daysInMonth; d++) {
@@ -500,6 +605,10 @@ function generateTable() {
                 }
                 bonusPerDay[d].total += BONUS_CONFIG.bonusEmailsOutlook.valor;
                 bonusPerDay[d].items.push({ value: BONUS_CONFIG.bonusEmailsOutlook.valor, name: BONUS_CONFIG.bonusEmailsOutlook.nome });
+                
+                // Salvar bônus automático no JSON
+                addAutoBonusIfNotExists(monthKey, d, BONUS_CONFIG.bonusEmailsOutlook.valor, BONUS_CONFIG.bonusEmailsOutlook.nome, 'emailsoutlook');
+                
                 consecutiveDaysOutlook = 0; // Resetar para o próximo grupo
                 groupStartOutlook = 0;
             }
@@ -574,6 +683,9 @@ function generateTable() {
                         }
                         bonusPerDay[fifthDay].total += BONUS_CONFIG.bonusSemanalConsole.valor;
                         bonusPerDay[fifthDay].items.push({ value: BONUS_CONFIG.bonusSemanalConsole.valor, name: BONUS_CONFIG.bonusSemanalConsole.nome });
+                        
+                        // Salvar bônus automático no JSON
+                        addAutoBonusIfNotExists(monthKey, fifthDay, BONUS_CONFIG.bonusSemanalConsole.valor, BONUS_CONFIG.bonusSemanalConsole.nome, 'playconsole');
                     }
                 }
             } else {
@@ -587,6 +699,9 @@ function generateTable() {
                     }
                     bonusPerDay[fifthDay].total += BONUS_CONFIG.bonusSemanalConsole.valor;
                     bonusPerDay[fifthDay].items.push({ value: BONUS_CONFIG.bonusSemanalConsole.valor, name: BONUS_CONFIG.bonusSemanalConsole.nome });
+                    
+                    // Salvar bônus automático no JSON
+                    addAutoBonusIfNotExists(monthKey, fifthDay, BONUS_CONFIG.bonusSemanalConsole.valor, BONUS_CONFIG.bonusSemanalConsole.nome, 'playconsole');
                 }
             }
             
@@ -659,6 +774,9 @@ function generateTable() {
                         }
                         bonusPerDay[fifthDay].total += BONUS_CONFIG.bonusSemanalWindows.valor;
                         bonusPerDay[fifthDay].items.push({ value: BONUS_CONFIG.bonusSemanalWindows.valor, name: BONUS_CONFIG.bonusSemanalWindows.nome });
+                        
+                        // Salvar bônus automático no JSON
+                        addAutoBonusIfNotExists(monthKey, fifthDay, BONUS_CONFIG.bonusSemanalWindows.valor, BONUS_CONFIG.bonusSemanalWindows.nome, 'playwindows');
                     }
                 }
             } else {
@@ -672,6 +790,9 @@ function generateTable() {
                     }
                     bonusPerDay[fifthDay].total += BONUS_CONFIG.bonusSemanalWindows.valor;
                     bonusPerDay[fifthDay].items.push({ value: BONUS_CONFIG.bonusSemanalWindows.valor, name: BONUS_CONFIG.bonusSemanalWindows.nome });
+                    
+                    // Salvar bônus automático no JSON
+                    addAutoBonusIfNotExists(monthKey, fifthDay, BONUS_CONFIG.bonusSemanalWindows.valor, BONUS_CONFIG.bonusSemanalWindows.nome, 'playwindows');
                 }
             }
             
@@ -1110,32 +1231,83 @@ function generateTable() {
             const prevMonthKey = `${prevYear}-${prevMonthIndex}`;
             const prevMonthDays = getDaysInMonth(prevYear, prevMonthIndex);
             
-            // Verificar os últimos (groupDays-1) dias do mês anterior para grupos que continuam
-            for (let d = Math.max(1, prevMonthDays - (groupDays - 2)); d <= prevMonthDays; d++) {
-                const dKey = `day${d}`;
-                const dValue = data[prevMonthKey]?.[dKey]?.[activity.id];
+            // NOVA LÓGICA: Verificar se existe bônus salvo no mês anterior
+            const lastBonusDay = findLastBonusDayInPrevMonth(prevMonthKey, activity.id, prevMonthDays);
+            
+            if (lastBonusDay > 0) {
+                // Há um bônus salvo - calcular dias restantes da sequência
+                const daysRemaining = prevMonthDays - lastBonusDay;
+                const daysInCurrentMonth = groupDays - daysRemaining;
                 
-                if (dValue && dValue !== '') {
-                    // Verificar se é início de grupo
-                    const prevDKey = `day${d - 1}`;
-                    const prevDValue = data[prevMonthKey]?.[prevDKey]?.[activity.id];
+                if (daysInCurrentMonth > 0 && daysInCurrentMonth < groupDays) {
+                    console.log(`🎨 Borda: Continuando grupo de ${activity.id} do dia ${lastBonusDay} do mês anterior. Faltam ${daysInCurrentMonth} dias.`);
                     
-                    if (d === 1 || !prevDValue || prevDValue === '') {
-                        // Este grupo pode continuar no mês atual
-                        const groupStart = d;
-                        const daysFromPrevMonth = prevMonthDays - d + 1;
-                        const daysInCurrentMonth = groupDays - daysFromPrevMonth;
-                        
-                        if (daysInCurrentMonth > 0) {
-                            // Este grupo continua no mês atual
-                            groups.push({ 
-                                start: 1, 
-                                end: Math.min(daysInCurrentMonth, daysInMonth),
-                                crossMonth: true,
-                                prevMonthStart: groupStart
-                            });
-                        }
+                    // Adicionar grupo independente dos dias estarem marcados ou não
+                    groups.push({ 
+                        start: 1, 
+                        end: Math.min(daysInCurrentMonth, daysInMonth),
+                        crossMonth: true,
+                        prevMonthStart: lastBonusDay + 1,
+                        continuesFromBonus: true
+                    });
+                }
+            } else {
+                // LÓGICA ANTIGA: Não há bônus - verificar se todos os dias do mês anterior estão preenchidos
+                let allDaysFilled = true;
+                for (let d = 1; d <= prevMonthDays; d++) {
+                    const dKey = `day${d}`;
+                    const dValue = data[prevMonthKey]?.[dKey]?.[activity.id];
+                    if (!dValue || dValue === '' || dValue === 0) {
+                        allDaysFilled = false;
                         break;
+                    }
+                }
+                
+                if (allDaysFilled && prevMonthDays >= groupDays) {
+                    // Todos os dias preenchidos - calcular baseado no módulo
+                    const remainder = prevMonthDays % groupDays;
+                    const daysInCurrentMonth = groupDays - remainder;
+                    
+                    console.log(`🎨 Borda: Todos os dias de ${activity.id} preenchidos no mês anterior (${prevMonthDays} dias). Restam ${daysInCurrentMonth} dias para o próximo bônus.`);
+                    
+                    if (daysInCurrentMonth > 0 && daysInCurrentMonth < groupDays) {
+                        // Adicionar grupo independente dos dias estarem marcados ou não
+                        groups.push({ 
+                            start: 1, 
+                            end: Math.min(daysInCurrentMonth, daysInMonth),
+                            crossMonth: true,
+                            allPrevMonthFilled: true
+                        });
+                    }
+                } else {
+                    // Verificar os últimos dias do mês anterior para grupos que continuam
+                    for (let d = Math.max(1, prevMonthDays - (groupDays - 2)); d <= prevMonthDays; d++) {
+                        const dKey = `day${d}`;
+                        const dValue = data[prevMonthKey]?.[dKey]?.[activity.id];
+                        
+                        if (dValue && dValue !== '') {
+                            // Verificar se é início de grupo
+                            const prevDKey = `day${d - 1}`;
+                            const prevDValue = data[prevMonthKey]?.[prevDKey]?.[activity.id];
+                            
+                            if (d === 1 || !prevDValue || prevDValue === '') {
+                                // Este grupo pode continuar no mês atual
+                                const groupStart = d;
+                                const daysFromPrevMonth = prevMonthDays - d + 1;
+                                const daysInCurrentMonth = groupDays - daysFromPrevMonth;
+                                
+                                if (daysInCurrentMonth > 0) {
+                                    // Este grupo continua no mês atual
+                                    groups.push({ 
+                                        start: 1, 
+                                        end: Math.min(daysInCurrentMonth, daysInMonth),
+                                        crossMonth: true,
+                                        prevMonthStart: groupStart
+                                    });
+                                }
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -1810,6 +1982,10 @@ function generateTable() {
 
     html += '</tbody></table>';
     document.getElementById('tableContainer').innerHTML = html;
+    
+    // Salvar dados após regenerar a tabela (para salvar bônus calculados)
+    // Usar debounce para evitar salvamentos excessivos
+    saveData();
 }
 
 function editCell(monthKey, dayKey, activityId, cell) {
