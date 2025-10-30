@@ -1231,81 +1231,91 @@ function generateTable() {
             const prevMonthKey = `${prevYear}-${prevMonthIndex}`;
             const prevMonthDays = getDaysInMonth(prevYear, prevMonthIndex);
             
-            // NOVA LÓGICA: Verificar se existe bônus salvo no mês anterior
-            const lastBonusDay = findLastBonusDayInPrevMonth(prevMonthKey, activity.id, prevMonthDays);
+            // VERIFICAÇÃO CRÍTICA: Último dia do mês anterior deve estar preenchido
+            const lastDayKey = `day${prevMonthDays}`;
+            const lastDayValue = data[prevMonthKey]?.[lastDayKey]?.[activity.id];
+            const hasGapAtEnd = !lastDayValue || lastDayValue === '' || lastDayValue === 0;
             
-            if (lastBonusDay > 0) {
-                // Há um bônus salvo - calcular dias restantes da sequência
-                const daysRemaining = prevMonthDays - lastBonusDay;
-                const daysInCurrentMonth = groupDays - daysRemaining;
-                
-                if (daysInCurrentMonth > 0 && daysInCurrentMonth < groupDays) {
-                    console.log(`🎨 Borda: Continuando grupo de ${activity.id} do dia ${lastBonusDay} do mês anterior. Faltam ${daysInCurrentMonth} dias.`);
-                    
-                    // Adicionar grupo independente dos dias estarem marcados ou não
-                    groups.push({ 
-                        start: 1, 
-                        end: Math.min(daysInCurrentMonth, daysInMonth),
-                        crossMonth: true,
-                        prevMonthStart: lastBonusDay + 1,
-                        continuesFromBonus: true
-                    });
-                }
+            if (hasGapAtEnd) {
+                console.log(`⚠️ Gap detectado: Último dia do mês anterior (${prevMonthDays}) de ${activity.id} está vazio. Sequência resetada.`);
+                // Não adicionar nenhum grupo - sequência começa do zero
             } else {
-                // LÓGICA ANTIGA: Não há bônus - verificar se todos os dias do mês anterior estão preenchidos
-                let allDaysFilled = true;
-                for (let d = 1; d <= prevMonthDays; d++) {
-                    const dKey = `day${d}`;
-                    const dValue = data[prevMonthKey]?.[dKey]?.[activity.id];
-                    if (!dValue || dValue === '' || dValue === 0) {
-                        allDaysFilled = false;
-                        break;
-                    }
-                }
+                // NOVA LÓGICA: Verificar se existe bônus salvo no mês anterior
+                const lastBonusDay = findLastBonusDayInPrevMonth(prevMonthKey, activity.id, prevMonthDays);
                 
-                if (allDaysFilled && prevMonthDays >= groupDays) {
-                    // Todos os dias preenchidos - calcular baseado no módulo
-                    const remainder = prevMonthDays % groupDays;
-                    const daysInCurrentMonth = groupDays - remainder;
-                    
-                    console.log(`🎨 Borda: Todos os dias de ${activity.id} preenchidos no mês anterior (${prevMonthDays} dias). Restam ${daysInCurrentMonth} dias para o próximo bônus.`);
+                if (lastBonusDay > 0) {
+                    // Há um bônus salvo - calcular dias restantes da sequência
+                    const daysRemaining = prevMonthDays - lastBonusDay;
+                    const daysInCurrentMonth = groupDays - daysRemaining;
                     
                     if (daysInCurrentMonth > 0 && daysInCurrentMonth < groupDays) {
+                        console.log(`🎨 Borda: Continuando grupo de ${activity.id} do dia ${lastBonusDay} do mês anterior. Faltam ${daysInCurrentMonth} dias.`);
+                        
                         // Adicionar grupo independente dos dias estarem marcados ou não
                         groups.push({ 
                             start: 1, 
                             end: Math.min(daysInCurrentMonth, daysInMonth),
                             crossMonth: true,
-                            allPrevMonthFilled: true
+                            prevMonthStart: lastBonusDay + 1,
+                            continuesFromBonus: true
                         });
                     }
                 } else {
-                    // Verificar os últimos dias do mês anterior para grupos que continuam
-                    for (let d = Math.max(1, prevMonthDays - (groupDays - 2)); d <= prevMonthDays; d++) {
+                    // LÓGICA ANTIGA: Não há bônus - verificar se todos os dias do mês anterior estão preenchidos
+                    let allDaysFilled = true;
+                    for (let d = 1; d <= prevMonthDays; d++) {
                         const dKey = `day${d}`;
                         const dValue = data[prevMonthKey]?.[dKey]?.[activity.id];
+                        if (!dValue || dValue === '' || dValue === 0) {
+                            allDaysFilled = false;
+                            break;
+                        }
+                    }
+                    
+                    if (allDaysFilled && prevMonthDays >= groupDays) {
+                        // Todos os dias preenchidos - calcular baseado no módulo
+                        const remainder = prevMonthDays % groupDays;
+                        const daysInCurrentMonth = groupDays - remainder;
                         
-                        if (dValue && dValue !== '') {
-                            // Verificar se é início de grupo
-                            const prevDKey = `day${d - 1}`;
-                            const prevDValue = data[prevMonthKey]?.[prevDKey]?.[activity.id];
+                        console.log(`🎨 Borda: Todos os dias de ${activity.id} preenchidos no mês anterior (${prevMonthDays} dias). Restam ${daysInCurrentMonth} dias para o próximo bônus.`);
+                        
+                        if (daysInCurrentMonth > 0 && daysInCurrentMonth < groupDays) {
+                            // Adicionar grupo independente dos dias estarem marcados ou não
+                            groups.push({ 
+                                start: 1, 
+                                end: Math.min(daysInCurrentMonth, daysInMonth),
+                                crossMonth: true,
+                                allPrevMonthFilled: true
+                            });
+                        }
+                    } else {
+                        // Verificar os últimos dias do mês anterior para grupos que continuam
+                        for (let d = Math.max(1, prevMonthDays - (groupDays - 2)); d <= prevMonthDays; d++) {
+                            const dKey = `day${d}`;
+                            const dValue = data[prevMonthKey]?.[dKey]?.[activity.id];
                             
-                            if (d === 1 || !prevDValue || prevDValue === '') {
-                                // Este grupo pode continuar no mês atual
-                                const groupStart = d;
-                                const daysFromPrevMonth = prevMonthDays - d + 1;
-                                const daysInCurrentMonth = groupDays - daysFromPrevMonth;
+                            if (dValue && dValue !== '') {
+                                // Verificar se é início de grupo
+                                const prevDKey = `day${d - 1}`;
+                                const prevDValue = data[prevMonthKey]?.[prevDKey]?.[activity.id];
                                 
-                                if (daysInCurrentMonth > 0) {
-                                    // Este grupo continua no mês atual
-                                    groups.push({ 
-                                        start: 1, 
-                                        end: Math.min(daysInCurrentMonth, daysInMonth),
-                                        crossMonth: true,
-                                        prevMonthStart: groupStart
-                                    });
+                                if (d === 1 || !prevDValue || prevDValue === '') {
+                                    // Este grupo pode continuar no mês atual
+                                    const groupStart = d;
+                                    const daysFromPrevMonth = prevMonthDays - d + 1;
+                                    const daysInCurrentMonth = groupDays - daysFromPrevMonth;
+                                    
+                                    if (daysInCurrentMonth > 0) {
+                                        // Este grupo continua no mês atual
+                                        groups.push({ 
+                                            start: 1, 
+                                            end: Math.min(daysInCurrentMonth, daysInMonth),
+                                            crossMonth: true,
+                                            prevMonthStart: groupStart
+                                        });
+                                    }
+                                    break;
                                 }
-                                break;
                             }
                         }
                     }
