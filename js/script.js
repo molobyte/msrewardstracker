@@ -930,9 +930,9 @@ function generateTable() {
     activities.forEach(activity => {
         html += `<tr><td class="row-header sub" style="background: ${activity.color}; border-width: 0px">${activity.name}</td>`;
         
-        // Para Conjunto Diario, Pesquisas Bing PC, Navegar com Edge e Ler emails do Outlook, primeiro identificar todos os grupos no mês
+        // Para Conjunto Diario, Pesquisas Bing PC e Ler emails do Outlook, primeiro identificar todos os grupos no mês
         let groups = [];
-        const groupDays = activity.id === 'conjuntodiario' ? 10 : activity.id === 'pesquisabingpc' ? 7 : activity.id === 'navegaredge' ? 7 : activity.id === 'playgamepass' ? 7 : activity.id === 'emailsoutlook' ? 7 : 0;
+        const groupDays = activity.id === 'conjuntodiario' ? 10 : activity.id === 'pesquisabingpc' ? 7 : activity.id === 'playgamepass' ? 7 : activity.id === 'emailsoutlook' ? 7 : 0;
         
         // Para playconsole, identificar grupos de 5 dias dentro de cada semana
         let consoleGroups = [];
@@ -1231,6 +1231,121 @@ function generateTable() {
             }
         }
         
+        // Para navegaredge, identificar grupos de ciclo progressivo (5 -> 10 -> 20 -> 30 -> 40 -> 80 -> 120)
+        let edgeGroups = [];
+        if (activity.id === 'navegaredge') {
+            const edgeSequence = [5, 10, 20, 30, 40, 80, 120];
+            
+            // Verificar o último dia do mês anterior
+            const prevMonth = currentMonth - 1;
+            const prevYear = prevMonth < 0 ? currentYear - 1 : currentYear;
+            const prevMonthIndex = prevMonth < 0 ? 11 : prevMonth;
+            const prevMonthKey = `${prevYear}-${prevMonthIndex}`;
+            const prevMonthDays = getDaysInMonth(prevYear, prevMonthIndex);
+            
+            let startingValueIndex = -1; // -1 significa começar do 5
+            
+            // Verificar último dia do mês anterior
+            if (data[prevMonthKey]) {
+                const lastDayPrevMonthKey = `day${prevMonthDays}`;
+                const lastDayPrevMonthValue = data[prevMonthKey][lastDayPrevMonthKey]?.navegaredge;
+                
+                // Verificar se não é vazio (gap)
+                if (lastDayPrevMonthValue && lastDayPrevMonthValue !== '' && lastDayPrevMonthValue !== 0) {
+                    // Se o mês anterior terminou no meio de um ciclo, continuar
+                    if (lastDayPrevMonthValue !== 120) {
+                        startingValueIndex = edgeSequence.indexOf(parseInt(lastDayPrevMonthValue));
+                    }
+                }
+            }
+            
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dKey = `day${d}`;
+                const dValue = data[monthKey][dKey]?.navegaredge;
+                
+                // Se é o primeiro dia e continua do mês anterior
+                if (d === 1 && startingValueIndex >= 0) {
+                    const expectedNextIndex = startingValueIndex + 1;
+                    if (expectedNextIndex < edgeSequence.length && parseInt(dValue) === edgeSequence[expectedNextIndex]) {
+                        let groupStart = 1;
+                        let groupEnd = 1;
+                        let currentValueIndex = expectedNextIndex;
+                        
+                        // Procurar a sequência até o fim do ciclo ou um gap
+                        for (let checkDay = 2; checkDay <= daysInMonth; checkDay++) {
+                            const checkKey = `day${checkDay}`;
+                            const checkValue = data[monthKey][checkKey]?.navegaredge;
+                            
+                            if (!checkValue || checkValue === '') {
+                                break;
+                            }
+                            
+                            const nextExpectedIndex = currentValueIndex + 1;
+                            if (nextExpectedIndex < edgeSequence.length && parseInt(checkValue) === edgeSequence[nextExpectedIndex]) {
+                                groupEnd = checkDay;
+                                currentValueIndex = nextExpectedIndex;
+                                
+                                if (parseInt(checkValue) === 120) {
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        edgeGroups.push({
+                            start: groupStart,
+                            end: groupEnd,
+                            continuesFromPrevMonth: true
+                        });
+                        
+                        d = groupEnd;
+                        continue;
+                    }
+                }
+                
+                // Se encontrou um valor 5 (início do ciclo)
+                if (parseInt(dValue) === 5) {
+                    let groupStart = d;
+                    let groupEnd = d;
+                    let currentValueIndex = 0; // Começa no 5
+                    
+                    // Procurar a sequência até o fim do ciclo ou um gap
+                    for (let checkDay = d + 1; checkDay <= daysInMonth; checkDay++) {
+                        const checkKey = `day${checkDay}`;
+                        const checkValue = data[monthKey][checkKey]?.navegaredge;
+                        
+                        if (!checkValue || checkValue === '') {
+                            break;
+                        }
+                        
+                        const expectedNextIndex = currentValueIndex + 1;
+                        if (expectedNextIndex < edgeSequence.length && parseInt(checkValue) === edgeSequence[expectedNextIndex]) {
+                            groupEnd = checkDay;
+                            currentValueIndex = expectedNextIndex;
+                            
+                            if (parseInt(checkValue) === 120) {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    // Adicionar grupo se tiver mais de um dia ou se terminou no meio do ciclo
+                    if (groupEnd > groupStart || parseInt(data[monthKey][`day${groupEnd}`]?.navegaredge) !== 5) {
+                        edgeGroups.push({
+                            start: groupStart,
+                            end: groupEnd
+                        });
+                    }
+                    
+                    // Pular para depois do grupo
+                    d = groupEnd;
+                }
+            }
+        }
+        
         if (groupDays > 0) {
             // Verificar se há um grupo do mês anterior que continua neste mês
             const prevMonth = currentMonth - 1;
@@ -1386,11 +1501,40 @@ function generateTable() {
             const value = data[monthKey][dayKey]?.[activity.id] || '';
             const dayOfWeek = getDayOfWeek(currentYear, currentMonth, day);
             
-            // Determinar se deve ter borda de grupo (para Conjunto Diario, Pesquisas Bing PC, Navegar com Edge e Ler emails do Outlook)
+            // Determinar se deve ter borda de grupo (para Conjunto Diario, Pesquisas Bing PC e Ler emails do Outlook)
             let borderClasses = [];
-            if (activity.id === 'conjuntodiario' || activity.id === 'pesquisabingpc' || activity.id === 'navegaredge' || activity.id === 'emailsoutlook') {
+            if (activity.id === 'conjuntodiario' || activity.id === 'pesquisabingpc' || activity.id === 'emailsoutlook') {
                 // Verificar se este dia está dentro de algum grupo
                 for (let group of groups) {
+                    if (day >= group.start && day <= group.end) {
+                        // Este dia faz parte de um grupo
+                        borderClasses.push('group-border-top');
+                        borderClasses.push('group-border-bottom');
+                        borderClasses.push('group-background');
+                        
+                        // Borda esquerda no primeiro dia do grupo
+                        if (day === group.start) {
+                            borderClasses.push('group-border-left');
+                        } else {
+                            // Dentro do grupo, remover borda esquerda fina
+                            borderClasses.push('group-inside-left');
+                        }
+                        
+                        // Borda direita no último dia do grupo
+                        if (day === group.end) {
+                            borderClasses.push('group-border-right');
+                        } else {
+                            // Dentro do grupo, remover borda direita fina
+                            borderClasses.push('group-inside-right');
+                        }
+                        break; // Só pode estar em um grupo
+                    }
+                }
+            }
+            // Para navegaredge, usar edgeGroups
+            else if (activity.id === 'navegaredge') {
+                // Verificar se este dia está dentro de algum grupo de Edge
+                for (let group of edgeGroups) {
                     if (day >= group.start && day <= group.end) {
                         // Este dia faz parte de um grupo
                         borderClasses.push('group-border-top');
