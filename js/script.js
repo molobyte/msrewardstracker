@@ -857,13 +857,21 @@ function generateTable() {
             const checkMonthKey = `${year}-${month}`;
             if (data[checkMonthKey]) {
                 const monthDays = getDaysInMonth(year, month);
-                // Somar todos os dias deste mês (incluindo pontos normais e bônus extras)
+                // Somar todos os dias deste mês
                 for (let d = 1; d <= monthDays; d++) {
                     const dKey = `day${d}`;
                     const dPoints = data[checkMonthKey][dKey]?.pontos || 0;
                     accumulated += parseInt(dPoints) || 0;
                     
-                    // Adicionar bônus extras deste mês anterior
+                    // Adicionar bônus automáticos salvos
+                    if (data[checkMonthKey].bonuses && data[checkMonthKey].bonuses[dKey]) {
+                        const autoBonuses = data[checkMonthKey].bonuses[dKey];
+                        autoBonuses.forEach(bonus => {
+                            accumulated += parseInt(bonus.points) || 0;
+                        });
+                    }
+                    
+                    // Adicionar bônus extras personalizados
                     if (data[checkMonthKey].extraBonuses && data[checkMonthKey].extraBonuses[dKey]) {
                         const extraBonuses = data[checkMonthKey].extraBonuses[dKey];
                         extraBonuses.forEach(bonus => {
@@ -871,7 +879,7 @@ function generateTable() {
                         });
                     }
                     
-                    // Subtrair saques deste mês anterior
+                    // Subtrair saques
                     if (data[checkMonthKey].saques && data[checkMonthKey].saques[dKey]) {
                         const saques = data[checkMonthKey].saques[dKey];
                         saques.forEach(saque => {
