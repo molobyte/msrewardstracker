@@ -1,62 +1,81 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - MS Rewards Tracker</title>
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-  
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-  <link rel="manifest" href="site.webmanifest">
-  
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="css/login.css">
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Login - MS Rewards Tracker</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="manifest" href="site.webmanifest">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="css/login.css">
 </head>
-<body>
-  
 
-  <div class="container">
-    <div class="formcredent">
-      <h1>
-        Bem vindo!
-      </h1>
-      <h2>Entre com suas credenciais</h2>
+<body class="font-sans bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex items-center justify-center p-4 antialiased subtle-gradient-bg animate-backgroundGradient">
+    <div class="w-full max-w-5xl bg-card-light/80 dark:bg-card-dark/80 backdrop-blur-2xl shadow-2xl rounded-xl flex overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
+        <div class="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
 
-      <div class="form-group">
-        <span class="material-icons">email</span>
-        <input type="email" id="email" placeholder="E-mail" onkeypress="handleEnterKey(event)" />
-      </div>
-
-      <div class="form-group">
-        <span class="material-icons">key</span>
-        <input type="password" id="senha" placeholder="Senha" onkeypress="handleEnterKey(event)" />
-      </div>
-
-      <div class="button-group">
-        
-        <button class="primary" onclick="entrar()">
-          <span class="material-icons">login</span>
-          Entrar
-        </button>
-      </div>
-
-      <div class="Registrar">
-        <button class="secondary" onclick="cadastrar()">
-          Registrar nova conta
-        </button>
-      </div>
-
-      <div id="mensagem" class="message"></div>
+            <h1 class="text-4xl font-extrabold text-text-light dark:text-text-dark mb-2">Bem-vindo!</h1>
+            <p class="text-gray-500 dark:text-gray-400 mb-8">Faça login com suas credenciais.</p>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                        for="email">Email</label>
+                    <div class="relative">
+                        <span
+                            class="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">email</span>
+                        <input
+                            class="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-primary focus:border-primary text-text-light dark:text-text-dark placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-300"
+                            id="email" placeholder="seuemail@exemplo.com" required="" type="email" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                        for="password">Senha</label>
+                    <div class="relative">
+                        <span
+                            class="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock</span>
+                        <input
+                            class="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-primary focus:border-primary text-text-light dark:text-text-dark placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-300"
+                            id="senha" placeholder="Sua senha" type="password" />
+                    </div>
+                </div>
+                <button class="w-full bg-primary text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-300 flex items-center justify-center space-x-2 shadow-lg shadow-blue-500/20" onclick="entrar()">
+                    <span>Entrar</span>
+                    <span class="material-icons-outlined">arrow_forward</span>
+                </button>
+            </div>
+            <div id="mensagem" class="message"></div>
+            <div class="text-center mt-6">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Não tem uma conta? 
+                    <a class="font-semibold text-primary hover:underline" href="#">Registre-se</a>
+                </p>
+                
+            </div>
+        </div>
+        <div class="hidden md:flex md:w-1/2 items-center justify-center p-12 bg-gray-50 dark:bg-zinc-900/50">
+            <div class="text-center">
+                <span
+                    class="material-symbols-outlined reward-icon-gradient text-8xl !font-thin mb-4 animate-goldGradient">
+                    workspace_premium
+                </span>
+                <h2 class="text-5xl font-extrabold tracking-tight leading-tight dynamic-text-gradient animate-textGradient">
+                    Seja recompensado. <br />
+                    Do seu jeito.
+                </h2>
+            </div>
+        </div>
     </div>
-    
-    <div class="formeffect">
-      <div class="formeffect-center"></div>
-    </div>
-  </div>
-
     <script src="js/login.js"></script>
 </body>
 </html>

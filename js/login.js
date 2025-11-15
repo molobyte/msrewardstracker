@@ -34,6 +34,8 @@ async function entrar() {
     const email = document.getElementById("email").value;
     const senha = document.getElementById("senha").value;
     
+    console.log("Tentando logar com:", email, senha);
+
     if (!email || !senha) {
     mostrarMensagem("Por favor, preencha todos os campos.", "error");
     return;
@@ -69,3 +71,48 @@ function mostrarMensagem(texto, tipo) {
     mensagemEl.className = "message";
     }, 5000);
 }
+
+tailwind.config = {
+    darkMode: "class",
+    theme: {
+        extend: {
+            colors: {
+                primary: "#3b82f6", // Blue for accent
+                "background-light": "#f8f9fa",
+                "background-dark": "#18181b",
+                "card-light": "#ffffff",
+                "card-dark": "#27272a",
+                "text-light": "#18181b",
+                "text-dark": "#e4e4e7",
+            },
+            fontFamily: {
+                sans: ["Manrope", "sans-serif"],
+            },
+            borderRadius: {
+                "xl": "1rem", // 16px
+            },
+            keyframes: {
+                backgroundGradient: {
+                    '0%': { backgroundPosition: '0% 50%' },
+                    '50%': { backgroundPosition: '100% 50%' },
+                    '100%': { backgroundPosition: '0% 50%' },
+                },
+                textGradient: {
+                    '0%': { backgroundPosition: '0% 50%' },
+                    '50%': { backgroundPosition: '100% 50%' },
+                    '100%': { backgroundPosition: '0% 50%' },
+                },
+                goldGradient: {
+                    '0%': { backgroundPosition: '0% 50%' },
+                    '50%': { backgroundPosition: '100% 50%' },
+                    '100%': { backgroundPosition: '0% 50%' },
+                }
+            },
+            animation: {
+                backgroundGradient: 'backgroundGradient 20s ease infinite',
+                textGradient: 'textGradient 10s ease infinite',
+                goldGradient: 'goldGradient 8s ease infinite', // Animation for the medal icon
+            }
+        },
+    },
+};
